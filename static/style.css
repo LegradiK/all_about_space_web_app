@@ -91,24 +91,6 @@ header {
     padding: 3rem 0;
 }
 
-.apod-display img {
-    width: 100%;
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-}
-
-.apod-display iframe {
-    width: 100%;
-    aspect-ratio: 16/9;
-    border-radius: 8px;
-}
-
-.apod-title {
-    font-size: 0.85rem;
-    color: #aaa;
-    text-align: center;
-}
-
 .hero-panel,
 .card {
     background: var(--panel);
@@ -163,6 +145,26 @@ header {
     letter-spacing: 0.06em;
 }
 
+/* A Picture Of The Day area */
+.apod-display img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.apod-display iframe {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 8px;
+}
+
+.apod-title {
+    font-size: 0.85rem;
+    color: #aaa;
+    text-align: center;
+}
+
+
 .aurora-display {
     height: 180px;
     border-radius: 18px;
@@ -189,7 +191,8 @@ header {
     list-style: none;
 }
 
-.data-list li {
+.data-list
+.asteroid-list li {
     padding: 0.9rem 0;
     border-bottom: 1px solid rgba(255,255,255,0.06);
     color: var(--text-secondary);

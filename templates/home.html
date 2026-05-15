@@ -46,20 +46,26 @@
 
         <div class="card">
         <h3>Asteroid Surveillance</h3>
-        <ul class="data-list">
-            <li>2026 QX1 / 1.2 million km approach / Low threat</li>
-            <li>99942 Apophis / Long-range monitoring / Stable</li>
-            <li>458732 NEO / Moderate diameter / Passing safely</li>
-        </ul>
+            {% if neows %}
+                {% for n in neows %}
+                    <li class="asteroid-list">{{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km / {{ "Hazardous" if n.dangerous else "Safe" }}</li>
+                {% endfor %}
+            {% else %}
+                <p>Data unavailable.</p>
+            {% endif %}
         </div>
 
         <div class="card">
-        <h3>Earth Observation Archive</h3>
-        <div class="gallery">
-            <img src="https://images-assets.nasa.gov/image/iss063e081641/iss063e081641~medium.jpg" alt="Earth Observation 1">
-            <img src="https://images-assets.nasa.gov/image/iss040e090540/iss040e090540~medium.jpg" alt="Earth Observation 2">
-            <img src="https://images-assets.nasa.gov/image/iss068e012345/iss068e012345~medium.jpg" alt="Earth Observation 3">
-            <img src="https://images-assets.nasa.gov/image/iss071e543210/iss071e543210~medium.jpg" alt="Earth Observation 4">
+            <h3>Today’s Earth</h3>
+            <div class="gallery">
+                {% if epic %}
+                    {% for img in epic %}
+                        <img src="{{ img.url }}" alt="{{ img.title }}">
+                    {% endfor %}
+                {% else %}
+                    <p>Images unavailable.</p>
+                {% endif %}
+            </div>
         </div>
         </div>
     </section>
