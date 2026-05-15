@@ -11,51 +11,23 @@
     </header>
 
     <section class="hero">
-        <div class="hero-panel">
-            <h2>Global Space Situational Awareness</h2>
-            <p>Track mission-critical launches, monitor asteroid flybys, observe auroral activity, and access Earth and deep-space visual intelligence from authoritative data sources.</p>
-        </div>
-        <div class="sidebar">
-            <div class="card">
-                <h3>Picture of the Day</h3>
-                <div class="apod-display">
-                    {% if apod %}
-                        {% if apod.media_type == 'image' %}
-                            <img src="{{ apod.url }}" alt="{{ apod.title }}">
-                        {% else %}
-                            <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen></iframe>
-                        {% endif %}
-                        <p class="apod-title">{{ apod.title }}</p>
+        <div class="card">
+            <h2>Picture of the Day</h2>
+            <div class="apod-display">
+                {% if apod %}
+                    {% if apod.media_type == 'image' %}
+                        <img src="{{ apod.url }}" alt="{{ apod.title }}">
                     {% else %}
-                        <p>Image unavailable.</p>
+                        <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen></iframe>
                     {% endif %}
-                </div>
+                    <p class="apod-title">{{ apod.title }}</p>
+                    <p class="apod-desc">{{ apod.explanation[:200] }}...</p>
+                {% else %}
+                    <p>Image unavailable.</p>
+                {% endif %}
             </div>
         </div>
-    </section>
-
-    <section class="dashboard-grid">
-        <div class="card">
-        <h3>Launch Operations</h3>
-        <ul class="data-list">
-            <li>Falcon 9 / Starlink Deployment / T-02:14:00</li>
-            <li>Artemis Cargo Resupply / T-29:00:00</li>
-            <li>Electron Orbital Payload / T-80:00:00</li>
-        </ul>
-        </div>
-
-        <div class="card">
-        <h3>Asteroid Surveillance</h3>
-            {% if neows %}
-                {% for n in neows %}
-                    <li class="asteroid-list">{{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km / {{ "Hazardous" if n.dangerous else "Safe" }}</li>
-                {% endfor %}
-            {% else %}
-                <p>Data unavailable.</p>
-            {% endif %}
-        </div>
-
-        <div class="card">
+        <div class="sidebar card">
             <h3>Today’s Earth</h3>
             <div class="gallery">
                 {% if epic %}
@@ -66,6 +38,44 @@
                     <p>Images unavailable.</p>
                 {% endif %}
             </div>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="card">
+        <h3>Launch Operations</h3>
+            {% if launches %}
+            <ul class="data-list">
+                {% for l in launches %}
+                    <li class="launch-item">
+                        <span class="launch-name">{{ l.name }}</span>
+                        <span>{{ l.date }}</span>
+                        <span>{{ l.location }}</span>
+                        <span>{{ l.status }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                <p>Data unavailable.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+        <h3>Asteroid Surveillance</h3>
+            {% if neows %}
+            <ul class="data-list">
+                {% for n in neows %}
+                    <li class="asteroid-list">{{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km / {{ "Hazardous" if n.dangerous else "Safe" }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                <p>Data unavailable.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3>Global Space Situational Awareness</h3>
+            <p>Track mission-critical launches, monitor asteroid flybys, observe auroral activity, and access Earth and deep-space visual intelligence from authoritative data sources.</p>
         </div>
         </div>
     </section>

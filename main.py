@@ -2,6 +2,7 @@ import os
 import requests
 from datetime import datetime, timedelta
 import random
+import pytz
 from flask import Flask, render_template
 from dotenv import load_dotenv
 
@@ -11,6 +12,13 @@ load_dotenv("data.env")
 NASA_API = os.getenv('NASA_API')
 
 app = Flask(__name__)
+
+def format_date(date_str):
+    dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
+    dt = dt.replace(tzinfo=pytz.utc)
+    uk_tz = pytz.timezone('Europe/London')
+    uk_time = dt.astimezone(uk_tz)
+    return uk_time.strftime('%Y %m %d , %H:%M %Z')
 
 def get_apod():
     """get Astronomy Picture of the Day"""
@@ -42,7 +50,7 @@ def get_epic():
         images = response.json()
         random.shuffle(images)
         result = []
-        for img in images[:4]:
+        for img in images[:2]:
             date = img['date'][:10].replace('-', '/')
             url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/png/{img['image']}.png"
             result.append({'url': url, 'title': img['caption']})
@@ -84,6 +92,31 @@ def get_neows():
     except Exception as e:
         print("NeoWs failed:", e)
         return None
+    
+def get_launches():
+    """Get 5 upcoming rocket launches"""
+    try:
+        response = requests.get(
+            'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
+            params={
+                'limit': 5,
+                'format': 'json'
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        launches = []
+        for r in data['results']:
+            launches.append({
+                'name': r['name'],
+                'date': format_date(r['net']),
+                'status': r['status']['name'],
+                'location': r['pad']['location']['name'],
+            })
+        return launches
+    except Exception as e:
+        print("Launches failed:", e)
+        return None
 
 
 @app.route('/')
@@ -91,7 +124,8 @@ def home():
     apod = get_apod()
     epic = get_epic()
     neows = get_neows()
-    return render_template("home.html",apod=apod, epic=epic, neows=neows)
+    launches = get_launches()
+    return render_template("home.html",apod=apod, epic=epic, neows=neows, launches=launches)
 
 
 if __name__ == "__main__":

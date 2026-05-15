@@ -108,12 +108,14 @@ header {
     justify-content: flex-end;
     background:
     linear-gradient(to top, rgba(2,8,20,0.9), rgba(2,8,20,0.25)),
-    url('https://images-assets.nasa.gov/image/GSFC_20171208_Archive_e001861/GSFC_20171208_Archive_e001861~large.jpg') center/cover;
 }
 
 .hero-panel h2 {
     font-size: 2.2rem;
+    color: var(--accent);
     margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .hero-panel p {
@@ -164,6 +166,13 @@ header {
     text-align: center;
 }
 
+.apod-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    line-height: 1.5;
+}
+
 
 .aurora-display {
     height: 180px;
@@ -191,8 +200,7 @@ header {
     list-style: none;
 }
 
-.data-list
-.asteroid-list li {
+.data-list li {
     padding: 0.9rem 0;
     border-bottom: 1px solid rgba(255,255,255,0.06);
     color: var(--text-secondary);
@@ -201,6 +209,25 @@ header {
 
 .data-list li:last-child {
     border-bottom: none;
+}
+
+.launch-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-secondary);
+    gap: 0.3rem;
+}
+
+.launch-name {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.launch-item span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
 .gallery {
@@ -218,6 +245,14 @@ header {
 
 .gallery img {
     aspect-ratio: 1 / 1;
+}
+
+.sidebar .gallery {
+    grid-template-columns: 1fr;
+}
+
+.sidebar .gallery img {
+    aspect-ratio: 16 / 16;
 }
 
 .feature-section {
