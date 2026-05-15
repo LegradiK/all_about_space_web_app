@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+    <div class="container">
+    <header>
+        <div class="branding">
+        <h1>Orbital Intelligence</h1>
+        <p>Advanced monitoring of near-Earth activity, launch operations, atmospheric events, and astronomical imagery through a unified observational platform.</p>
+        </div>
+        <div class="status-badge">Live Space Monitoring</div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-panel">
+            <h2>Global Space Situational Awareness</h2>
+            <p>Track mission-critical launches, monitor asteroid flybys, observe auroral activity, and access Earth and deep-space visual intelligence from authoritative data sources.</p>
+        </div>
+        <div class="sidebar">
+            <div class="card">
+                <h3>Picture of the Day</h3>
+                <div class="apod-display">
+                    {% if apod %}
+                        {% if apod.media_type == 'image' %}
+                            <img src="{{ apod.url }}" alt="{{ apod.title }}">
+                        {% else %}
+                            <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen></iframe>
+                        {% endif %}
+                        <p class="apod-title">{{ apod.title }}</p>
+                    {% else %}
+                        <p>Image unavailable.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="card">
+        <h3>Launch Operations</h3>
+        <ul class="data-list">
+            <li>Falcon 9 / Starlink Deployment / T-02:14:00</li>
+            <li>Artemis Cargo Resupply / T-29:00:00</li>
+            <li>Electron Orbital Payload / T-80:00:00</li>
+        </ul>
+        </div>
+
+        <div class="card">
+        <h3>Asteroid Surveillance</h3>
+        <ul class="data-list">
+            <li>2026 QX1 / 1.2 million km approach / Low threat</li>
+            <li>99942 Apophis / Long-range monitoring / Stable</li>
+            <li>458732 NEO / Moderate diameter / Passing safely</li>
+        </ul>
+        </div>
+
+        <div class="card">
+        <h3>Earth Observation Archive</h3>
+        <div class="gallery">
+            <img src="https://images-assets.nasa.gov/image/iss063e081641/iss063e081641~medium.jpg" alt="Earth Observation 1">
+            <img src="https://images-assets.nasa.gov/image/iss040e090540/iss040e090540~medium.jpg" alt="Earth Observation 2">
+            <img src="https://images-assets.nasa.gov/image/iss068e012345/iss068e012345~medium.jpg" alt="Earth Observation 3">
+            <img src="https://images-assets.nasa.gov/image/iss071e543210/iss071e543210~medium.jpg" alt="Earth Observation 4">
+        </div>
+        </div>
+    </section>
+
+    <section class="feature-section card">
+        <h3>Astronomy Image of the Day</h3>
+        <div class="feature-image">
+        <img src="https://apod.nasa.gov/apod/image/1901/IC1805_Abolfath_3952.jpg" alt="Astronomy Image of the Day">
+        </div>
+        <div class="feature-meta">
+        <h2>The Heart Nebula</h2>
+        <p>High-resolution astrophotography showcasing ionised hydrogen structures and stellar formation regions within one of the most visually significant nebulae in observed space.</p>
+        </div>
+    </section>
+    </div>
+{% endblock %}
