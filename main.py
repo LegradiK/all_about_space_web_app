@@ -1,24 +1,30 @@
+import os
 import requests
 from flask import Flask, render_template
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NASA_API = os.getenv('NASA_API')
 
 app = Flask(__name__)
 
-def index(request):
-    apod = None
+def get_apod():
+    """get Astronomy Picture of the Day"""
     try:
         response = requests.get(
             'https://api.nasa.gov/planetary/apod',
-            params={'api_key': 'YOUR_API_KEY'}
+            params={'api_key': NASA_API}
         )
-        apod = response.json()
+        return response.json()
     except Exception:
-        pass
-
-    return render(request, 'index.html', {'apod': apod})
+        return None
+    
 
 @app.route('/')
 def home():
-    return render_template("home.html")
+    apod = get_apod()
+    return render_template("home.html",apod=apod)
 
 
 if __name__ == "__main__":
