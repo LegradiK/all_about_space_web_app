@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 import random
 import pytz
-from flask import Flask, render_template
+from flask import Flask, render_template, Response
 from dotenv import load_dotenv
 
 
@@ -50,7 +50,7 @@ def get_epic():
         images = response.json()
         random.shuffle(images)
         result = []
-        for img in images[:2]:
+        for img in images[:1]:
             date = img['date'][:10].replace('-', '/')
             url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/png/{img['image']}.png"
             result.append({'url': url, 'title': img['caption']})
@@ -99,7 +99,7 @@ def get_launches():
         response = requests.get(
             'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
             params={
-                'limit': 5,
+                'limit': 4,
                 'format': 'json'
             }
         )
@@ -117,7 +117,22 @@ def get_launches():
     except Exception as e:
         print("Launches failed:", e)
         return None
+    
+@app.route('/api/aurora-status')
+def aurora_proxy():
+    r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2/current-status.xml')
+    return Response(r.content, content_type='application/xml')
 
+def get_iss():
+    try:
+        r = requests.get('http://api.open-notify.org/iss-now.json')
+        data = r.json()
+        lat = float(data['iss_position']['latitude'])
+        lon = float(data['iss_position']['longitude'])
+        return {'lat': lat, 'lon': lon}
+    except Exception as e:
+        print("ISS failed:", e)
+        return None
 
 @app.route('/')
 def home():
@@ -125,7 +140,8 @@ def home():
     epic = get_epic()
     neows = get_neows()
     launches = get_launches()
-    return render_template("home.html",apod=apod, epic=epic, neows=neows, launches=launches)
+    iss = get_iss()
+    return render_template("home.html",apod=apod, epic=epic, neows=neows, launches=launches, iss=iss)
 
 
 if __name__ == "__main__":
