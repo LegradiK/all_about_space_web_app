@@ -30,7 +30,10 @@ def get_apod():
             'https://api.nasa.gov/planetary/apod',
             params={'api_key': NASA_API}
         )
-        return response.json()
+        return {
+            **response.json(),
+            'source_url': response.json().get('hdurl') or response.json().get('url')
+        }
     except Exception as e:
         print("APOD fetch failed:", e)
         return None
@@ -112,6 +115,9 @@ def get_launches():
                 'date': format_date(r['net']),
                 'status': r['status']['name'],
                 'location': r['pad']['location']['name'],
+                'url': r['url'] if r.get('url') else None,
+                'image': r.get('image'),
+                'mission': r['mission']['description'] if r.get('mission') else None
             })
         return launches
     except Exception as e:
@@ -129,7 +135,8 @@ def get_iss():
         data = r.json()
         lat = float(data['iss_position']['latitude'])
         lon = float(data['iss_position']['longitude'])
-        return {'lat': lat, 'lon': lon}
+        url = 'https://spotthestation.nasa.gov/'
+        return {'lat': lat, 'lon': lon}, url
     except Exception as e:
         print("ISS failed:", e)
         return None

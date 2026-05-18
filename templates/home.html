@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 
-    <div class="container">
+<div class="container">
     <header>
         <div class="branding">
-        <h1>Horizon Intelligence</h1>
-        <p>Live tracking of asteroid approaches, rocket launches, aurora alerts, and Earth imagery — consolidated into a single observational platform.</p>
+            <h1>Horizon Intelligence</h1>
+            <p>Live tracking of asteroid approaches, rocket launches, aurora alerts, and Earth imagery — consolidated into a single observational platform.</p>
         </div>
     </header>
 
@@ -21,38 +21,42 @@
                     {% endif %}
                     <p class="apod-title">{{ apod.title }}</p>
                     <p class="apod-desc">{{ apod.explanation[:200] }}...</p>
+                    <a href="{{ apod.source_url }}" target="_blank">Open Full Resolution</a>
                 {% else %}
                     <p>Image unavailable.</p>
                 {% endif %}
             </div>
         </div>
+
         <div class="sidebar card">
             <h3>ISS Tracker</h3>
-                <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px">Live position updates every 5 seconds</p>
+            <p>Live position updated every 5 seconds by <a href="https://spotthestation.nasa.gov/">Nasa</a></p>
 
-                <div id="issMapContainer" style="width:100%;border-radius:8px;overflow:hidden;position:relative;background:transparent">
-                    <svg id="issGlobe" viewBox="0 0 600 320" style="width:100%;display:block"></svg>
-                </div>
+            <div id="issMapContainer" class="map-container globe-container">
+                <svg id="issGlobe" viewBox="0 0 600 320"></svg>
+            </div>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px">
-                        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a94;margin-bottom:4px;font-family:monospace">Latitude</div>
-                        <div id="issLat" style="font-size:1rem;font-weight:500;font-family:monospace">—</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px">
-                        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a94;margin-bottom:4px;font-family:monospace">Longitude</div>
-                        <div id="issLon" style="font-size:1rem;font-weight:500;font-family:monospace">—</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px">
-                        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a94;margin-bottom:4px;font-family:monospace">Over UK</div>
-                        <div id="issOverUK" style="font-size:1rem;font-weight:500;font-family:monospace">—</div>
-                    </div>
+            <div class="stats-grid three-col">
+                <div class="stat-box">
+                    <div class="stat-label">Latitude</div>
+                    <div id="issLat" class="stat-value">—</div>
                 </div>
+                <div class="stat-box">
+                    <div class="stat-label">Longitude</div>
+                    <div id="issLon" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Over UK</div>
+                    <div id="issOverUK" class="stat-value">—</div>
+                </div>
+            </div>
+
             <h3>Today’s Earth</h3>
             <div class="gallery">
                 {% if epic %}
                     {% for img in epic %}
                         <img src="{{ img.url }}" alt="{{ img.title }}">
+                        <a href="{{ img.url }}" target="_blank">Open Full Resolution</a>
                     {% endfor %}
                 {% else %}
                     <p>Images unavailable.</p>
@@ -63,24 +67,28 @@
 
     <section class="dashboard-grid">
         <div class="card">
-        <h3>Launch Operations</h3>
-            {% if launches %}
-            <ul class="data-list">
-                {% for l in launches %}
-                    <li class="launch-item">
-                        <span class="launch-name">{{ l.name }}</span>
-                        <span>{{ l.date }}</span>
-                        <span>{{ l.location }}</span>
-                        <span>{{ l.status }}</span>
-                    </li>
-                {% endfor %}
-            </ul>
+            <h3>Launch Operations</h3>
+            {% if launches %} 
+                <ul class="data-list">
+                    {% for l in launches %}
+
+                        <li class="launch-item">
+                            {% if l.url %}
+                                <a href="{{ l.url }}">
+                                    <span class="launch-name">{{ l.name }}</span>
+                                </a>
+                            {% endif %}
+                            <span>{{ l.date }}</span>
+                            <span>{{ l.location }}</span>
+                            <span>{{ l.status }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
             {% else %}
                 <p>Data unavailable.</p>
             {% endif %}
         </div>
-
-        <div class="card">
+         <div class="card">
         <h3>Asteroid Surveillance</h3>
             <p class="titles">
                 <span>Name</span> &nbsp;|&nbsp;
@@ -92,7 +100,9 @@
             {% if neows %}
             <ul class="data-list">
                 {% for n in neows %}
-                    <li class="asteroid-list">{{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km / {{ "Hazardous" if n.dangerous else "Safe" }}</li>
+                    <a href="{{ n.url }}">
+                        <li class="asteroid-list">{{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km / {{ "Hazardous" if n.dangerous else "Safe" }}</li>
+                    </a>
                 {% endfor %}
             </ul>
             {% else %}
@@ -145,6 +155,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+
 <script>
 (function () {
   const SITES_META = {
