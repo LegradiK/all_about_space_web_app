@@ -3,46 +3,71 @@
 {% block content %}
 
 <div class="home-grid">
-
-    <div class="apod-col">
-        {% if apod %}
-            <div class="card apod-info">
-                <h2>{{ apod.title }}</h2>
-                <div class="apod-hero-wrap">
-                    {% if apod.media_type == 'image' %}
-                        <img src="{{ apod.url }}" alt="{{ apod.title }}" class="apod-full-img">
-                    {% else %}
-                        <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen class="apod-full-iframe"></iframe>
-                    {% endif %}
-                    <div class="apod-overlay">
-                        <span class="apod-date">{{ apod.date }}</span>
-                        <p class="apod-explanation">{{ apod.explanation }}</p>
+    <div class="apod-epic">
+        <div class="apod-col">
+            {% if apod %}
+                <div class="card apod-info">
+                    <h2>Astronomy Picture of the Day: {{ apod.title }}</h2>
+                    <div class="apod-hero-wrap">
+                        {% if apod.media_type == 'image' %}
+                            <img src="{{ apod.url }}" alt="{{ apod.title }}" class="apod-full-img" id="apodImg">
+                        {% else %}
+                            <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen class="apod-full-iframe"></iframe>
+                        {% endif %}
+                        <div class="apod-overlay">
+                            <span class="apod-date">{{ apod.date }}</span>
+                            <p class="apod-explanation">{{ apod.explanation }}</p>
+                        </div>
+                        <div class="apod-side-panel">
+                            <span class="apod-date">{{ apod.date }}</span>
+                            <p class="apod-explanation">{{ apod.explanation }}</p>
+                        </div>
                     </div>
+                    <a href="{{ apod.source_url }}" target="_blank">Open Full Resolution</a>
                 </div>
-                <a href="{{ apod.source_url }}" target="_blank">Open Full Resolution</a>
-            </div>
-        {% else %}
-            <div class="card"><p>Image unavailable.</p></div>
-        {% endif %}
-    </div>
+            {% else %}
+                <div class="card"><p>Image unavailable.</p></div>
+            {% endif %}
+        </div>
 
-    <div class="card epic-col">
-        <span class="section-label">Today's Earth</span>
-        {% if epic %}
-            {% for img in epic %}
-                <div class="epic-img-wrap">
-                    <img src="{{ img.url }}" alt="{{ img.title }}" class="epic-img">
-                    <div class="epic-overlay">
-                        <p>{{ img.title }}</p>
+        <div class="card epic-col">
+            <span class="section-label">Today's Earth</span>
+            {% if epic %}
+                {% for img in epic %}
+                    <div class="epic-img-wrap">
+                        <img src="{{ img.url }}" alt="{{ img.title }}" class="epic-img">
+                        <div class="epic-overlay">
+                            <p>{{ img.title }}</p>
+                        </div>
                     </div>
-                </div>
-                <a href="{{ img.url }}" target="_blank">Open Full Resolution</a>
-            {% endfor %}
-        {% else %}
-            <p>Image unavailable.</p>
-        {% endif %}
+                    <a href="{{ img.url }}" target="_blank">Open Full Resolution</a>
+                {% endfor %}
+            {% else %}
+                <p>Image unavailable.</p>
+            {% endif %}
+        </div>
     </div>
-
 </div>
+
+<script>
+(function () {
+    const img = document.getElementById('apodImg');
+    if (!img) return;
+
+    function classify() {
+        const wrap = img.closest('.apod-hero-wrap');
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const wrapAspect = wrap.clientWidth / wrap.clientHeight;
+        wrap.classList.toggle('landscape', imgAspect > wrapAspect);
+    }
+
+    if (img.complete && img.naturalWidth) {
+        classify();
+    } else {
+        img.addEventListener('load', classify);
+    }
+    window.addEventListener('resize', classify);
+})();
+</script>
 
 {% endblock %}

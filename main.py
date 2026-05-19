@@ -50,7 +50,7 @@ def get_epic():
         images = response.json()
         random.shuffle(images)
         result = []
-        for img in images[:1]:
+        for img in images[:2]:
             date = img['date'][:10].replace('-', '/')
             url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/png/{img['image']}.png"
             result.append({'url': url, 'title': img['caption']})
