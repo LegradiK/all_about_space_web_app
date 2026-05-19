@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Asteroids — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="page-header">
+        <h2>Asteroid Surveillance</h2>
+        <p>Near-Earth objects with close approaches in the next 7 days, sourced from <a href="https://cneos.jpl.nasa.gov/" target="_blank">NASA CNEOS</a></p>
+    </div>
+
+    <div class="card">
+        <p class="titles">
+            <span>Name</span> &nbsp;|&nbsp;
+            <span>Close Approach<sup>1</sup></span> &nbsp;|&nbsp;
+            <span>Distance<sup>2</sup></span> &nbsp;|&nbsp;
+            <span>Threat<sup>3</sup></span>
+        </p>
+
+        {% if neows %}
+            <ul class="data-list">
+                {% for n in neows %}
+                    <a href="{{ n.url }}" target="_blank">
+                        <li class="asteroid-list">
+                            {{ n.name }} / {{ n.date }} / {{ "{:,}".format(n.distance) }} km /
+                            <span class="{{ 'hazardous' if n.dangerous else 'safe' }}">
+                                {{ "Hazardous" if n.dangerous else "Safe" }}
+                            </span>
+                        </li>
+                    </a>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Data unavailable.</p>
+        {% endif %}
+
+        <div class="asteroid-footnotes">
+            <p>
+                <sup>1</sup> Date of closest approach to Earth.<br>
+                <sup>2</sup> Miss distance — closest point the asteroid passes to Earth's surface.<br>
+                <sup>3</sup> Hazard classification based on NASA CNEOS risk assessment criteria.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

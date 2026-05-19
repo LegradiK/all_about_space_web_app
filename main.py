@@ -21,7 +21,6 @@ def format_date(date_str):
     return uk_time.strftime('%Y %m %d , %H:%M %Z')
 
 def get_apod():
-    """get Astronomy Picture of the Day"""
     if not NASA_API:
         print("ERROR: NASA_API key not found in .env")
         return None
@@ -37,10 +36,8 @@ def get_apod():
     except Exception as e:
         print("APOD fetch failed:", e)
         return None
-    
+
 def get_epic():
-    """The EPIC API provides information on the daily imagery collected 
-    by DSCOVR's Earth Polychromatic Imaging Camera (EPIC) instrument"""
     if not NASA_API:
         print("ERROR: NASA_API key not found in .env")
         return None
@@ -61,7 +58,7 @@ def get_epic():
     except Exception as e:
         print("EPIC failed:", e)
         return None
-    
+
 def get_neows():
     if not NASA_API:
         print("ERROR: NASA_API key not found in .env")
@@ -95,16 +92,12 @@ def get_neows():
     except Exception as e:
         print("NeoWs failed:", e)
         return None
-    
+
 def get_launches():
-    """Get 5 upcoming rocket launches"""
     try:
         response = requests.get(
             'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
-            params={
-                'limit': 4,
-                'format': 'json'
-            }
+            params={'limit': 4, 'format': 'json'}
         )
         response.raise_for_status()
         data = response.json()
@@ -123,32 +116,36 @@ def get_launches():
     except Exception as e:
         print("Launches failed:", e)
         return None
-    
+
 @app.route('/api/aurora-status')
 def aurora_proxy():
     r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2/current-status.xml')
     return Response(r.content, content_type='application/xml')
 
-def get_iss():
-    try:
-        r = requests.get('http://api.open-notify.org/iss-now.json')
-        data = r.json()
-        lat = float(data['iss_position']['latitude'])
-        lon = float(data['iss_position']['longitude'])
-        url = 'https://spotthestation.nasa.gov/'
-        return {'lat': lat, 'lon': lon}, url
-    except Exception as e:
-        print("ISS failed:", e)
-        return None
-
 @app.route('/')
 def home():
     apod = get_apod()
     epic = get_epic()
-    neows = get_neows()
+    return render_template("home.html", apod=apod, epic=epic)
+
+@app.route('/iss')
+def iss_page():
+    epic = get_epic()
+    return render_template("iss.html", epic=epic)
+
+@app.route('/launches')
+def launches_page():
     launches = get_launches()
-    iss = get_iss()
-    return render_template("home.html",apod=apod, epic=epic, neows=neows, launches=launches, iss=iss)
+    return render_template("launches.html", launches=launches)
+
+@app.route('/asteroids')
+def asteroids_page():
+    neows = get_neows()
+    return render_template("asteroids.html", neows=neows)
+
+@app.route('/aurora')
+def aurora_page():
+    return render_template("aurora.html")
 
 
 if __name__ == "__main__":

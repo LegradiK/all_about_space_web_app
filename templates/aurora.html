@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Aurora Watch — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="page-header">
+        <h2>Aurora Watch</h2>
+        <p>Real-time geomagnetic activity across the UK, sourced from <a href="https://aurorawatch.lancs.ac.uk/" target="_blank">AuroraWatch UK</a></p>
+    </div>
+
+    <div class="card">
+        <div id="auroraStatus" class="aurora-status"></div>
+
+        <div class="aurora-stats">
+            <div class="stat-box">
+                <div class="stat-label">Alert Level</div>
+                <div id="awLevel" class="stat-value">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Sites Online</div>
+                <div id="awSites" class="stat-value">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Best Viewing</div>
+                <div id="awViewing" class="aw-viewing">—</div>
+            </div>
+        </div>
+
+        <div id="auroraMapContainer" class="map-container aurora-map-container">
+            <div id="auroraMapLoading" class="aurora-map-loading">Loading map…</div>
+        </div>
+
+        <div id="awSiteList" class="aw-site-list"></div>
+
+        <div class="aw-footer">
+            <span id="awUpdated" class="aw-updated">—</span>
+            <button id="awRefreshBtn" onclick="auroraLoad()" class="refresh-btn">↺ Refresh</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+(function () {
+  const SITES_META = {
+    'ler2': { name: 'Lerwick',     lat: 60.13, lon: -1.18 },
+    'shu1': { name: 'Shetland',    lat: 60.33, lon: -1.10 },
+    'kir1': { name: 'Kirkwall',    lat: 58.98, lon: -2.96 },
+    'inv2': { name: 'Inverness',   lat: 57.48, lon: -4.22 },
+    'crk2': { name: 'Crooktree',   lat: 57.09, lon: -2.55 },
+    'esk2': { name: 'Eskdalemuir', lat: 55.31, lon: -3.20 },
+    'ber1': { name: 'Berwick',     lat: 55.77, lon: -2.00 },
+    'lan1': { name: 'Lancaster',   lat: 54.01, lon: -2.77 },
+    'lan2': { name: 'Lancaster 2', lat: 54.01, lon: -2.60 },
+    'pen1': { name: 'Penrith',     lat: 54.67, lon: -2.74 },
+    'car1': { name: 'Carlisle',    lat: 54.89, lon: -2.93 },
+    'had1': { name: 'Hartland',    lat: 50.99, lon: -4.48 },
+    'wick': { name: 'Wick',        lat: 58.44, lon: -3.09 },
+    'kir2': { name: 'Kirton',      lat: 52.91, lon: -0.24 },
+  };
+
+  const ORDER  = ['green', 'yellow', 'amber', 'red'];
+  const BANNER = {
+    green:  'Quiet — aurora unlikely across the UK.',
+    yellow: 'Minor activity — aurora possible from far northern Scotland.',
+    amber:  'Moderate storm — aurora likely from Scotland, possible from northern England.',
+    red:    'Strong storm — aurora may be visible across much of the UK tonight!',
+  };
+  const VIEWING = {
+    green: 'Unlikely anywhere', yellow: 'Far N. Scotland only',
+    amber: 'Scotland + N. England', red: 'Much of the UK',
+  };
+  const DOT_COLORS = { green: '#22c55e', yellow: '#eab308', amber: '#f97316', red: '#ef4444' };
+
+  const projection = d3.geoMercator()
+    .center([-3.5, 54.8])
+    .scale(1500)
+    .translate([200, 220]);
+
+  const pathGen = d3.geoPath().projection(projection);
+  let svgEl = null;
+  let dotsGroup = null;
+
+  async function initMap() {
+    const container = document.getElementById('auroraMapContainer');
+    const width = container.clientWidth || 400;
+    const height = Math.round(width * 1.1);
+    container.style.minHeight = height + 'px';
+
+    projection.translate([width / 2, height / 2]);
+
+    svgEl = d3.select('#auroraMapContainer')
+      .append('svg')
+      .attr('width', '100%')
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .style('display', 'block')
+      .style('background', 'transparent');
+
+    const latLines = [50, 52, 54, 56, 58, 60];
+    const graticule = svgEl.append('g');
+    latLines.forEach(lat => {
+      graticule.append('path')
+        .datum({ type: 'LineString', coordinates: [[-12, lat], [4, lat]] })
+        .attr('d', pathGen)
+        .attr('stroke', 'rgba(108,180,255,0.08)')
+        .attr('stroke-width', 0.5)
+        .attr('fill', 'none');
+      const [lx, ly] = projection([-8.5, lat]);
+      graticule.append('text')
+        .attr('x', lx).attr('y', ly + 3)
+        .attr('font-size', 8).attr('font-family', 'monospace')
+        .attr('fill', 'rgba(169,184,208,0.4)')
+        .text(lat + '°N');
+    });
+
+    try {
+      const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+      const countries = topojson.feature(world, world.objects.countries);
+      const ukAndIreland = {
+        type: 'FeatureCollection',
+        features: countries.features.filter(f => ['826', '372'].includes(String(f.id)))
+      };
+      svgEl.append('g')
+        .selectAll('path')
+        .data(ukAndIreland.features)
+        .join('path')
+        .attr('d', pathGen)
+        .attr('fill', d => String(d.id) === '826' ? 'rgba(108,180,255,0.18)' : 'rgba(108,180,255,0.07)')
+        .attr('stroke', 'rgba(108,180,255,0.35)')
+        .attr('stroke-width', 0.8);
+      document.getElementById('auroraMapLoading').style.display = 'none';
+    } catch (e) {
+      document.getElementById('auroraMapLoading').textContent = 'Map unavailable';
+      console.error('Map load failed', e);
+    }
+
+    dotsGroup = svgEl.append('g');
+  }
+
+  function plotDots(sites) {
+    if (!dotsGroup) return;
+    dotsGroup.selectAll('*').remove();
+    sites.filter(s => s.lat).forEach(s => {
+      const [cx, cy] = projection([s.lon, s.lat]);
+      const c = DOT_COLORS[s.status] || '#6b7a94';
+      const isHot = s.status === 'amber' || s.status === 'red';
+
+      const ring = dotsGroup.append('circle')
+        .attr('cx', cx).attr('cy', cy).attr('r', 6)
+        .attr('fill', 'none').attr('stroke', c)
+        .attr('stroke-width', 2).attr('opacity', 0.5);
+
+      if (isHot) {
+        ring.append('animate').attr('attributeName', 'r').attr('values', '6;18;6').attr('dur', '2s').attr('repeatCount', 'indefinite');
+        ring.append('animate').attr('attributeName', 'opacity').attr('values', '0.5;0;0.5').attr('dur', '2s').attr('repeatCount', 'indefinite');
+      }
+
+      dotsGroup.append('circle')
+        .attr('cx', cx).attr('cy', cy).attr('r', 5)
+        .attr('fill', c).attr('stroke', 'rgba(0,0,0,0.5)').attr('stroke-width', 1.5)
+        .append('title').text(`${s.name} — ${s.status.toUpperCase()}`);
+
+      dotsGroup.append('text')
+        .attr('x', cx + 8).attr('y', cy + 4)
+        .attr('font-size', 8).attr('font-family', 'sans-serif')
+        .attr('fill', 'rgba(169,184,208,0.8)')
+        .text(s.name);
+    });
+  }
+
+  function renderList(sites) {
+    document.getElementById('awSiteList').innerHTML = sites.map(s =>
+      `<div class="aw-site-item aw-site-${s.status}">
+        <span class="aw-site-dot"></span>
+        <span class="aw-site-name">${s.name}</span>
+        <span class="aw-site-status">${s.status}</span>
+      </div>`
+    ).join('');
+  }
+
+  window.auroraLoad = async function () {
+    const btn = document.getElementById('awRefreshBtn');
+    btn.disabled = true; btn.textContent = 'Loading…';
+    try {
+      const res = await fetch('/api/aurora-status');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+      const nodes = [...xml.querySelectorAll('site_status')];
+      let overall = 'green';
+      const sites = nodes.map(n => {
+        const pid = n.getAttribute('project_id') || '';
+        const sid = n.getAttribute('site_id') || '';
+        const status = n.getAttribute('status_id') || 'green';
+        if (ORDER.indexOf(status) > ORDER.indexOf(overall)) overall = status;
+        const meta = SITES_META[sid.toLowerCase()] || null;
+        return { name: meta ? meta.name : (sid || pid), lat: meta?.lat || null, lon: meta?.lon || null, status };
+      }).sort((a, b) => ORDER.indexOf(b.status) - ORDER.indexOf(a.status) || a.name.localeCompare(b.name));
+
+      plotDots(sites);
+      renderList(sites);
+
+      const banner = document.getElementById('auroraStatus');
+      banner.className = `aurora-status aurora-status-${overall}`;
+      banner.textContent = BANNER[overall];
+
+      const lvlEl = document.getElementById('awLevel');
+      lvlEl.textContent = overall.charAt(0).toUpperCase() + overall.slice(1);
+      lvlEl.className = `stat-value aw-level-${overall}`;
+
+      document.getElementById('awSites').textContent = sites.length;
+      document.getElementById('awViewing').textContent = VIEWING[overall];
+      document.getElementById('awUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (err) {
+      const banner = document.getElementById('auroraStatus');
+      banner.className = 'aurora-status aurora-status-error';
+      banner.textContent = 'Could not fetch live data. Check the /api/aurora-status proxy route.';
+    }
+    btn.disabled = false; btn.textContent = '↺ Refresh';
+  };
+
+  initMap().then(() => auroraLoad());
+  setInterval(auroraLoad, 3 * 60 * 1000);
+})();
+</script>
+
+{% endblock %}

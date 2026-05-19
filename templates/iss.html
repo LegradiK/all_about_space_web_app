@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}ISS Tracker — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="page-header">
+        <h2>ISS Tracker</h2>
+        <p>Live position updated every 5 seconds by <a href="https://spotthestation.nasa.gov/" target="_blank">NASA</a></p>
+    </div>
+
+    <div class="card">
+        <div id="issMapContainer" class="map-container globe-container">
+            <svg id="issGlobe" viewBox="0 0 600 320"></svg>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-label">Latitude</div>
+                <div id="issLat" class="stat-value">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Longitude</div>
+                <div id="issLon" class="stat-value">—</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Over UK</div>
+                <div id="issOverUK" class="stat-value">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+(function () {
+    const width = 600, height = 320;
+    let issLat = 0, issLon = 0;
+    let projection, path, issMarker, issTrail = [];
+    const MAX_TRAIL = 60;
+
+    const svg = d3.select('#issGlobe')
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+    svg.append('rect')
+        .attr('width', width).attr('height', height)
+        .attr('fill', 'transparent');
+
+    projection = d3.geoOrthographic()
+        .scale(130)
+        .translate([width / 2, height / 2])
+        .clipAngle(90)
+        .rotate([0, -20]);
+
+    path = d3.geoPath().projection(projection);
+
+    svg.append('path')
+        .datum({ type: 'Sphere' })
+        .attr('class', 'globe-sphere')
+        .attr('d', path)
+        .attr('fill', 'rgba(7,20,38,0.9)')
+        .attr('stroke', 'rgba(108,180,255,0.2)')
+        .attr('stroke-width', 1);
+
+    svg.append('path')
+        .datum(d3.geoGraticule()())
+        .attr('d', path)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(108,180,255,0.06)')
+        .attr('stroke-width', 0.5);
+
+    const landGroup = svg.append('g').attr('id', 'issLand');
+    const trailGroup = svg.append('g').attr('id', 'issTrailGroup');
+    const markerGroup = svg.append('g').attr('id', 'issMarkerGroup');
+
+    d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+        const countries = topojson.feature(world, world.objects.countries);
+        landGroup.selectAll('path')
+            .data(countries.features)
+            .join('path')
+            .attr('d', path)
+            .attr('fill', 'rgba(108,180,255,0.12)')
+            .attr('stroke', 'rgba(108,180,255,0.25)')
+            .attr('stroke-width', 0.4);
+    });
+
+    issMarker = markerGroup.append('g').attr('id', 'issMarker');
+
+    issMarker.append('circle')
+        .attr('r', 10)
+        .attr('fill', 'none')
+        .attr('stroke', '#6cb4ff')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.5)
+        .attr('class', 'iss-pulse');
+
+    issMarker.append('circle')
+        .attr('r', 5)
+        .attr('fill', '#6cb4ff')
+        .attr('stroke', 'white')
+        .attr('stroke-width', 1.5);
+
+    issMarker.append('text')
+        .attr('x', 10).attr('y', -8)
+        .attr('font-size', 9)
+        .attr('font-family', 'monospace')
+        .attr('fill', '#6cb4ff')
+        .text('ISS');
+
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = `
+        .iss-pulse { animation: issPulse 2s ease-out infinite; }
+        @keyframes issPulse {
+            0%   { r: 5;  opacity: 0.8; }
+            100% { r: 18; opacity: 0; }
+        }
+    `;
+    svg.node().appendChild(style);
+
+    function redraw() {
+        svg.select('.globe-sphere').attr('d', path);
+        svg.select('path[fill="none"]').attr('d', path);
+        landGroup.selectAll('path').attr('d', path);
+
+        trailGroup.selectAll('*').remove();
+        if (issTrail.length > 1) {
+            const trailLine = d3.geoPath().projection(projection);
+            for (let i = 1; i < issTrail.length; i++) {
+                const opacity = (i / issTrail.length) * 0.6;
+                trailGroup.append('path')
+                    .datum({ type: 'LineString', coordinates: [issTrail[i - 1], issTrail[i]] })
+                    .attr('d', trailLine)
+                    .attr('fill', 'none')
+                    .attr('stroke', '#6cb4ff')
+                    .attr('stroke-width', 1.5)
+                    .attr('opacity', opacity);
+            }
+        }
+
+        const [mx, my] = projection([issLon, issLat]);
+        const visible = d3.geoDistance([issLon, issLat],
+            projection.invert([width / 2, height / 2])) < Math.PI / 2;
+        issMarker.attr('transform', `translate(${mx},${my})`)
+            .attr('display', visible ? 'block' : 'none');
+    }
+
+    function rotateTo(lon, lat) {
+        const targetRotation = [-lon, -lat + 20];
+        d3.transition()
+            .duration(4500)
+            .ease(d3.easeCubicInOut)
+            .tween('rotate', () => {
+                const r = d3.interpolate(projection.rotate(), targetRotation);
+                return t => { projection.rotate(r(t)); redraw(); };
+            });
+    }
+
+    async function fetchISS() {
+        try {
+            const res = await fetch('http://api.open-notify.org/iss-now.json');
+            const data = await res.json();
+            issLat = parseFloat(data.iss_position.latitude);
+            issLon = parseFloat(data.iss_position.longitude);
+
+            issTrail.push([issLon, issLat]);
+            if (issTrail.length > MAX_TRAIL) issTrail.shift();
+
+            const ns = issLat >= 0 ? 'N' : 'S';
+            const ew = issLon >= 0 ? 'E' : 'W';
+            document.getElementById('issLat').textContent = Math.abs(issLat).toFixed(2) + '° ' + ns;
+            document.getElementById('issLon').textContent = Math.abs(issLon).toFixed(2) + '° ' + ew;
+
+            const overUK = issLat >= 49.9 && issLat <= 60.9 && issLon >= -8.2 && issLon <= 2.0;
+            const ukEl = document.getElementById('issOverUK');
+            ukEl.textContent = overUK ? 'Yes' : 'No';
+            ukEl.style.color = overUK ? '#22c55e' : '#a9b8d0';
+
+            rotateTo(issLon, issLat);
+        } catch (e) {
+            console.error('ISS fetch failed', e);
+        }
+    }
+
+    fetchISS();
+    setInterval(fetchISS, 5000);
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Launches — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="page-header">
+        <h2>Launch Operations</h2>
+        <p>Upcoming rocket launches from around the world, sourced from <a href="https://thespacedevs.com/" target="_blank">The Space Devs</a></p>
+    </div>
+
+    <div class="card">
+        {% if launches %}
+            <ul class="data-list">
+                {% for l in launches %}
+                    <li class="launch-item">
+                        {% if l.url %}
+                            <a href="{{ l.url }}" target="_blank">
+                                <span class="launch-name">{{ l.name }}</span>
+                            </a>
+                        {% else %}
+                            <span class="launch-name">{{ l.name }}</span>
+                        {% endif %}
+                        <span>{{ l.date }}</span>
+                        <span>{{ l.location }}</span>
+                        <span>{{ l.status }}</span>
+                        {% if l.mission %}
+                            <span class="launch-mission">{{ l.mission }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Data unavailable.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
