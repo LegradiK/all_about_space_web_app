@@ -1,10 +1,20 @@
 import os
+import re
 import requests
 from datetime import datetime, timedelta
 import random
 import pytz
 from flask import Flask, render_template, Response
 from dotenv import load_dotenv
+
+
+def rocketlaunch_url(name):
+    slug = name.lower()
+    slug = re.sub(r'\s*\|\s*', '-', slug)
+    slug = slug.replace(' ', '-')
+    slug = re.sub(r'[^a-z0-9-]', '', slug)
+    slug = re.sub(r'-+', '-', slug).strip('-')
+    return f'https://rocketlaunch.org/mission-{slug}'
 
 
 load_dotenv("data.env")
@@ -88,7 +98,7 @@ def get_neows():
                 })
         random.shuffle(asteroids)
         asteroids.sort(key=lambda x: x['date'])
-        return asteroids[:5]
+        return asteroids[:10]
     except Exception as e:
         print("NeoWs failed:", e)
         return None
@@ -97,7 +107,7 @@ def get_launches():
     try:
         response = requests.get(
             'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
-            params={'limit': 4, 'format': 'json'}
+            params={'limit': 5, 'format': 'json'}
         )
         response.raise_for_status()
         data = response.json()
@@ -108,7 +118,7 @@ def get_launches():
                 'date': format_date(r['net']),
                 'status': r['status']['name'],
                 'location': r['pad']['location']['name'],
-                'url': r['url'] if r.get('url') else None,
+                'url': rocketlaunch_url(r['name']),
                 'image': r.get('image'),
                 'mission': r['mission']['description'] if r.get('mission') else None
             })

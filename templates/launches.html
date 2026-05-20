@@ -3,28 +3,27 @@
 {% block content %}
 
 <div class="page-container">
-    <div class="page-header">
-        <h2>Launch Operations</h2>
-        <p>Upcoming rocket launches from around the world, sourced from <a href="https://thespacedevs.com/" target="_blank">The Space Devs</a></p>
-    </div>
-
     <div class="card">
+        <h2>Launch Operations</h2>
+        <p class="iss-subtitle">Upcoming rocket launches from around the world, sourced from <a href="https://thespacedevs.com/" target="_blank">The Space Devs</a></p>
+        <p class="launch-link-hint">Click any mission name to open its dedicated page on <a href="https://rocketlaunch.org/" target="_blank">RocketLaunch.org</a> — a comprehensive launch tracker with countdown timers, vehicle details, payload info, and live coverage links.</p>
         {% if launches %}
-            <ul class="data-list">
+            <ul class="launch-list">
                 {% for l in launches %}
-                    <li class="launch-item">
-                        {% if l.url %}
-                            <a href="{{ l.url }}" target="_blank">
-                                <span class="launch-name">{{ l.name }}</span>
-                            </a>
-                        {% else %}
-                            <span class="launch-name">{{ l.name }}</span>
-                        {% endif %}
-                        <span>{{ l.date }}</span>
-                        <span>{{ l.location }}</span>
-                        <span>{{ l.status }}</span>
+                    <li class="launch-card">
+                        <div class="launch-header">
+                            <a href="{{ l.url }}" target="_blank" class="launch-title">{{ l.name }}</a>
+                            <div class="launch-meta">
+                                <span class="launch-chip launch-chip-date">{{ l.date }}</span>
+                                <span class="launch-chip">{{ l.location }}</span>
+                                <span class="launch-chip launch-chip-status">{{ l.status }}</span>
+                            </div>
+                        </div>
                         {% if l.mission %}
-                            <span class="launch-mission">{{ l.mission }}</span>
+                            <div class="launch-mission-wrap">
+                                <p class="launch-mission-text clamped">{{ l.mission }}</p>
+                                <button class="read-more-btn" onclick="toggleMission(this)" hidden>Read more</button>
+                            </div>
                         {% endif %}
                     </li>
                 {% endfor %}
@@ -34,5 +33,20 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function toggleMission(btn) {
+    const p = btn.previousElementSibling;
+    const expanded = !p.classList.contains('clamped');
+    p.classList.toggle('clamped', expanded);
+    btn.textContent = expanded ? 'Read more' : 'Show less';
+}
+
+document.querySelectorAll('.launch-mission-text').forEach(p => {
+    if (p.scrollHeight > p.clientHeight) {
+        p.nextElementSibling.hidden = false;
+    }
+});
+</script>
 
 {% endblock %}

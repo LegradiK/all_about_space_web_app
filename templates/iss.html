@@ -3,28 +3,27 @@
 {% block content %}
 
 <div class="page-container">
-    <div class="page-header">
-        <h2>ISS Tracker</h2>
-        <p>Live position updated every 5 seconds by <a href="https://spotthestation.nasa.gov/" target="_blank">NASA</a></p>
-    </div>
-
-    <div class="card">
-        <div id="issMapContainer" class="map-container globe-container">
-            <svg id="issGlobe" viewBox="0 0 600 320"></svg>
+    <div class="card iss-layout">
+        <div class="iss-info">
+            <h2>ISS Tracker</h2>
+            <p class="iss-subtitle">Live position updated every 5 seconds by <a href="https://spotthestation.nasa.gov/" target="_blank">NASA</a></p>
+            <div class="stats-grid iss-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Latitude</div>
+                    <div id="issLat" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Longitude</div>
+                    <div id="issLon" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Over UK</div>
+                    <div id="issOverUK" class="stat-value">—</div>
+                </div>
+            </div>
         </div>
-        <div class="stats-grid">
-            <div class="stat-box">
-                <div class="stat-label">Latitude</div>
-                <div id="issLat" class="stat-value">—</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Longitude</div>
-                <div id="issLon" class="stat-value">—</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Over UK</div>
-                <div id="issOverUK" class="stat-value">—</div>
-            </div>
+        <div id="issMapContainer" class="map-container globe-container iss-globe">
+            <svg id="issGlobe" viewBox="0 0 600 600"></svg>
         </div>
     </div>
 </div>
@@ -33,7 +32,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script>
 (function () {
-    const width = 600, height = 320;
+    const width = 600, height = 600;
     let issLat = 0, issLon = 0;
     let projection, path, issMarker, issTrail = [];
     const MAX_TRAIL = 60;
@@ -46,7 +45,7 @@
         .attr('fill', 'transparent');
 
     projection = d3.geoOrthographic()
-        .scale(130)
+        .scale(270)
         .translate([width / 2, height / 2])
         .clipAngle(90)
         .rotate([0, -20]);

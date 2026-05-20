@@ -3,38 +3,37 @@
 {% block content %}
 
 <div class="page-container">
-    <div class="page-header">
-        <h2>Aurora Watch</h2>
-        <p>Real-time geomagnetic activity across the UK, sourced from <a href="https://aurorawatch.lancs.ac.uk/" target="_blank">AuroraWatch UK</a></p>
-    </div>
+    <div class="card iss-layout">
+        <div class="iss-info">
+            <h2>Aurora Watch</h2>
+            <p class="iss-subtitle">Real-time geomagnetic activity across the UK, sourced from <a href="https://aurorawatch.lancs.ac.uk/" target="_blank">AuroraWatch UK</a></p>
+            <div id="auroraStatus" class="aurora-status"></div>
 
-    <div class="card">
-        <div id="auroraStatus" class="aurora-status"></div>
+            <div class="aurora-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Alert Level</div>
+                    <div id="awLevel" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Sites Online</div>
+                    <div id="awSites" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Best Viewing</div>
+                    <div id="awViewing" class="aw-viewing">—</div>
+                </div>
+            </div>
 
-        <div class="aurora-stats">
-            <div class="stat-box">
-                <div class="stat-label">Alert Level</div>
-                <div id="awLevel" class="stat-value">—</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Sites Online</div>
-                <div id="awSites" class="stat-value">—</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Best Viewing</div>
-                <div id="awViewing" class="aw-viewing">—</div>
+            <div id="awSiteList" class="aw-site-list"></div>
+
+            <div class="aw-footer">
+                <span id="awUpdated" class="aw-updated">—</span>
+                <button id="awRefreshBtn" onclick="auroraLoad()" class="refresh-btn">↺ Refresh</button>
             </div>
         </div>
 
-        <div id="auroraMapContainer" class="map-container aurora-map-container">
+        <div id="auroraMapContainer" class="map-container aurora-map-container iss-globe">
             <div id="auroraMapLoading" class="aurora-map-loading">Loading map…</div>
-        </div>
-
-        <div id="awSiteList" class="aw-site-list"></div>
-
-        <div class="aw-footer">
-            <span id="awUpdated" class="aw-updated">—</span>
-            <button id="awRefreshBtn" onclick="auroraLoad()" class="refresh-btn">↺ Refresh</button>
         </div>
     </div>
 </div>
@@ -75,7 +74,7 @@
 
   const projection = d3.geoMercator()
     .center([-3.5, 54.8])
-    .scale(1500)
+    .scale(2250)
     .translate([200, 220]);
 
   const pathGen = d3.geoPath().projection(projection);
@@ -84,15 +83,15 @@
 
   async function initMap() {
     const container = document.getElementById('auroraMapContainer');
-    const width = container.clientWidth || 400;
-    const height = Math.round(width * 1.1);
-    container.style.minHeight = height + 'px';
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 520;
 
     projection.translate([width / 2, height / 2]);
 
     svgEl = d3.select('#auroraMapContainer')
       .append('svg')
       .attr('width', '100%')
+      .attr('height', '100%')
       .attr('viewBox', `0 0 ${width} ${height}`)
       .style('display', 'block')
       .style('background', 'transparent');
@@ -219,7 +218,7 @@
     btn.disabled = false; btn.textContent = '↺ Refresh';
   };
 
-  initMap().then(() => auroraLoad());
+  requestAnimationFrame(() => initMap().then(() => auroraLoad()));
   setInterval(auroraLoad, 3 * 60 * 1000);
 })();
 </script>
