@@ -46,7 +46,7 @@ No database, no task queue, no frontend framework.
 ### 1. Clone and create a virtual environment
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/LegradiK/all_about_space_web_app.git
 cd all_about_space_web_app
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
