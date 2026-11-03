@@ -63,7 +63,7 @@ def get_epic():
         result = []
         for img in images[:2]:
             date = img['date'][:10].replace('-', '/')
-            url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/jpg/{img['image']}.jpg"
+            url = f"https://epic.gsfc.nasa.gov/archive/natural/images/{date}/jpg/{img['image']}.jpg"
             result.append({'url': url, 'title': img['caption']})
         return result
     except Exception as e:
