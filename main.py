@@ -53,8 +53,9 @@ def get_epic():
         return None
     try:
         response = requests.get(
-            'https://epic.gsfc.nasa.gov/api/natural/images',
-            params={'api_key': NASA_API}
+            'https://api.nasa.gov/EPIC/api/natural/images',
+            params={'api_key': NASA_API},
+            timeout=10
         )
         response.raise_for_status()
         images = response.json()
@@ -62,7 +63,7 @@ def get_epic():
         result = []
         for img in images[:2]:
             date = img['date'][:10].replace('-', '/')
-            url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/png/{img['image']}.png"
+            url = f"https://epic.gsfc.nasa.gov/archive/natural/{date}/jpg/{img['image']}.jpg"
             result.append({'url': url, 'title': img['caption']})
         return result
     except Exception as e:
