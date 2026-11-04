@@ -10,7 +10,7 @@
                     <h2>Astronomy Picture of the Day: {{ apod.title }}</h2>
                     <div class="apod-hero-wrap">
                         {% if apod.media_type == 'image' %}
-                            <img src="{{ apod.permalink }}" alt="{{ apod.title }}" class="apod-full-img" id="apodImg">
+                            <img src="{{ apod.url }}" alt="{{ apod.title }}" class="apod-full-img" id="apodImg">
                         {% else %}
                             <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen class="apod-full-iframe"></iframe>
                         {% endif %}
