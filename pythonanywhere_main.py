@@ -43,32 +43,26 @@ def get_apod():
     # (NASA logo, "NASA Science") or 503/504, and retires on 2026-12-01.
     # The new endpoint needs no API key.
     try:
-        response = requests.get(
-            'https://science.nasa.gov/wp-json/wp/v2/apod-basic',
-            params={
-                'per_page': 1,
-                '_fields': 'date,title,media_type,explanation,credit,copyright,alt,url,hdurl,permalink'
-            },
-            timeout=15
-        )
+        response = requests.get("https://science.nasa.gov/wp-json/wp/v2/apod-basic", timeout=10)
         response.raise_for_status()
-        data = response.json()
+        data = response.json()      # a list, not a dict
+
         if not data:
             print("APOD: empty response")
             return None
-        item = data[0]  # the endpoint returns a list, newest first
+        apod = data[0] 
         return {
-            'date': item.get('date'),
-            'title': strip_html(item.get('title')),
-            'media_type': item.get('media_type'),
-            'explanation': strip_html(item.get('explanation')),
-            'copyright': strip_html(item.get('copyright') or item.get('credit')),
-            'alt': item.get('alt'),
+            'date': apod.get('date'),
+            'title': strip_html(apod.get('title')),
+            'media_type': apod.get('media_type'),
+            'explanation': strip_html(apod.get('explanation')),
+            'copyright': strip_html(apod.get('copyright') or apod.get('credit')),
+            'alt': apod.get('alt'),
             # 'url' is now the article page, 'hdurl' is the actual image
-            'url': item.get('hdurl'),
-            'hdurl': item.get('hdurl'),
-            'permalink': item.get('permalink') or item.get('url'),
-            'source_url': item.get('hdurl') or item.get('permalink'),
+            'url': apod.get('hdurl'),
+            'hdurl': apod.get('hdurl'),
+            'permalink': apod.get('permalink') or apod.get('url'),
+            'source_url': apod.get('hdurl') or apod.get('permalink'),
         }
     except Exception as e:
         print("APOD fetch failed:", e)
