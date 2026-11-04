@@ -1,5 +1,6 @@
 import os
 import re
+import html
 import requests
 from datetime import datetime, timedelta
 import random
@@ -30,35 +31,62 @@ def format_date(date_str):
     uk_time = dt.astimezone(uk_tz)
     return uk_time.strftime('%Y %m %d , %H:%M %Z')
 
+def strip_html(text):
+    # The new APOD API returns explanation/credit/copyright as HTML fragments
+    text = re.sub(r'<[^>]+>', '', text or '')
+    return html.unescape(text).strip()
+
+
 def get_apod():
-    if not NASA_API:
-        print("ERROR: NASA_API key not found in .env")
-        return None
+    # APOD moved to science.nasa.gov on 2026-09-29. The old
+    # api.nasa.gov/planetary/apod endpoint now returns a placeholder
+    # (NASA logo, "NASA Science") or 503/504, and retires on 2026-12-01.
+    # The new endpoint needs no API key.
     try:
         response = requests.get(
-            'https://api.nasa.gov/planetary/apod',
-            params={'api_key': NASA_API}
+            'https://science.nasa.gov/wp-json/wp/v2/apod-basic',
+            params={
+                'per_page': 1,
+                '_fields': 'date,title,media_type,explanation,credit,copyright,alt,url,hdurl,permalink'
+            },
+            timeout=15
         )
+        response.raise_for_status()
+        data = response.json()
+        if not data:
+            print("APOD: empty response")
+            return None
+        item = data[0]  # the endpoint returns a list, newest first
         return {
-            **response.json(),
-            'source_url': response.json().get('hdurl') or response.json().get('url')
+            'date': item.get('date'),
+            'title': strip_html(item.get('title')),
+            'media_type': item.get('media_type'),
+            'explanation': strip_html(item.get('explanation')),
+            'copyright': strip_html(item.get('copyright') or item.get('credit')),
+            'alt': item.get('alt'),
+            # 'url' is now the article page, 'hdurl' is the actual image
+            'url': item.get('hdurl'),
+            'hdurl': item.get('hdurl'),
+            'permalink': item.get('permalink') or item.get('url'),
+            'source_url': item.get('hdurl') or item.get('permalink'),
         }
     except Exception as e:
         print("APOD fetch failed:", e)
         return None
 
 def get_epic():
-    if not NASA_API:
-        print("ERROR: NASA_API key not found in .env")
-        return None
+    # Call the EPIC server directly (no API key needed) instead of
+    # going through the api.nasa.gov gateway
     try:
         response = requests.get(
-            'https://api.nasa.gov/EPIC/api/natural/images',
-            params={'api_key': NASA_API},
-            timeout=10
+            'https://epic.gsfc.nasa.gov/api/natural',
+            timeout=15
         )
         response.raise_for_status()
         images = response.json()
+        if not images:
+            print("EPIC: no images returned")
+            return None
         random.shuffle(images)
         result = []
         for img in images[:2]:
