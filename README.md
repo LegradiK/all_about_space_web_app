@@ -6,13 +6,14 @@ A space-themed live data dashboard built with Flask. Aggregates real-time data f
 
 ## Pages
 
-| Page | What it shows |
-|---|---|
-| **Home** | NASA Astronomy Picture of the Day + two random Earth images from NASA EPIC |
-| **ISS Tracker** | Live International Space Station position on an interactive D3 globe, updated every 5 seconds |
-| **Aurora Watch** | Real-time geomagnetic activity across UK monitoring sites, sourced from AuroraWatch Lancaster |
-| **Asteroid Surveillance** | The 10 nearest asteroid close approaches in the next 7 days from NASA NeoWs |
-| **Launch Operations** | Next 5 upcoming rocket launches with mission descriptions, linked to RocketLaunch.org |
+
+| Page                      | What it shows                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Home**                  | NASA Astronomy Picture of the Day + two random Earth images from NASA EPIC                    |
+| **ISS Tracker**           | Live International Space Station position on an interactive D3 globe, updated every 5 seconds |
+| **Aurora Watch**          | Real-time geomagnetic activity across UK monitoring sites, sourced from AuroraWatch Lancaster |
+| **Asteroid Surveillance** | The 10 nearest asteroid close approaches in the next 7 days from NASA NeoWs                   |
+| **Launch Operations**     | Next 5 upcoming rocket launches with mission descriptions, linked to RocketLaunch.org         |
 
 ---
 
@@ -29,15 +30,16 @@ No database, no task queue, no frontend framework.
 
 ## External APIs
 
-| API | Used for | Auth |
-|---|---|---|
-| [NASA APOD](https://api.nasa.gov/) | Astronomy Picture of the Day | API key |
-| [NASA EPIC](https://epic.gsfc.nasa.gov/) | Earth Polychromatic Imaging Camera photos | API key |
-| [NASA NeoWs](https://api.nasa.gov/) | Near-Earth asteroid close approaches | API key |
-| [The Space Devs](https://thespacedevs.com/) | Upcoming rocket launches | None (public) |
-| [AuroraWatch UK](https://aurorawatch.lancs.ac.uk/) | Geomagnetic activity at UK sites | None (public XML) |
-| [Open Notify](http://api.open-notify.org/) | ISS real-time position (polled from browser) | None |
-| [world-atlas](https://cdn.jsdelivr.net/npm/world-atlas@2/) | Country boundaries TopoJSON for maps | None (CDN) |
+
+| API                                                        | Used for                                     | Auth              |
+| ------------------------------------------------------------ | ---------------------------------------------- | ------------------- |
+| [NASA APOD](https://api.nasa.gov/)                         | Astronomy Picture of the Day                 | API key           |
+| [NASA EPIC](https://epic.gsfc.nasa.gov/)                   | Earth Polychromatic Imaging Camera photos    | API key           |
+| [NASA NeoWs](https://api.nasa.gov/)                        | Near-Earth asteroid close approaches         | API key           |
+| [The Space Devs](https://thespacedevs.com/)                | Upcoming rocket launches                     | None (public)     |
+| [AuroraWatch UK](https://aurorawatch.lancs.ac.uk/)         | Geomagnetic activity at UK sites             | None (public XML) |
+| [Open Notify](http://api.open-notify.org/)                 | ISS real-time position (polled from browser) | None              |
+| [world-atlas](https://cdn.jsdelivr.net/npm/world-atlas@2/) | Country boundaries TopoJSON for maps         | None (CDN)        |
 
 ---
 
@@ -55,7 +57,7 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 ### 2. Install dependencies
 
 ```bash
-pip install flask requests python-dotenv pytz
+pip install -r requirements.txt
 ```
 
 ### 3. Add your NASA API key
@@ -115,8 +117,9 @@ all_about_space_web_app/
 
 ## Environment Variables
 
-| Variable | File | Description |
-|---|---|---|
+
+| Variable   | File       | Description                                |
+| ------------ | ------------ | -------------------------------------------- |
 | `NASA_API` | `data.env` | NASA Open APIs key — free at api.nasa.gov |
 
 ---
