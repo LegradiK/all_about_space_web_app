@@ -169,29 +169,52 @@ def get_neows():
         print("NeoWs failed:", e)
         return None
 
+# The Space Devs allow only 15 anonymous requests per hour, so cache the
+# result instead of calling the API on every page view.
+LAUNCH_CACHE_SECONDS = 15 * 60
+_launch_cache = {'data': None, 'fetched_at': None}
+
+
+def fetch_launches():
+    response = requests.get(
+        'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
+        params={'limit': 5, 'format': 'json'},
+        timeout=15
+    )
+    response.raise_for_status()
+    data = response.json()
+    launches = []
+    for r in data['results']:
+        launches.append({
+            'name': r['name'],
+            'date': format_date(r['net']),
+            'status': r['status']['name'],
+            'location': r['pad']['location']['name'],
+            'url': rocketlaunch_url(r['name']),
+            'image': r.get('image'),
+            'mission': r['mission']['description'] if r.get('mission') else None
+        })
+    return launches
+
+
 def get_launches():
+    now = datetime.now()
+    fetched_at = _launch_cache['fetched_at']
+
+    # Serve from cache while it's fresh
+    if fetched_at and now - fetched_at < timedelta(seconds=LAUNCH_CACHE_SECONDS):
+        return _launch_cache['data']
+
     try:
-        response = requests.get(
-            'https://ll.thespacedevs.com/2.3.0/launches/upcoming/',
-            params={'limit': 5, 'format': 'json'}
-        )
-        response.raise_for_status()
-        data = response.json()
-        launches = []
-        for r in data['results']:
-            launches.append({
-                'name': r['name'],
-                'date': format_date(r['net']),
-                'status': r['status']['name'],
-                'location': r['pad']['location']['name'],
-                'url': rocketlaunch_url(r['name']),
-                'image': r.get('image'),
-                'mission': r['mission']['description'] if r.get('mission') else None
-            })
-        return launches
+        _launch_cache['data'] = fetch_launches()
+        _launch_cache['fetched_at'] = now
     except Exception as e:
+        # e.g. 429 Too Many Requests: keep showing the last good data
         print("Launches failed:", e)
-        return None
+        if _launch_cache['data'] is not None:
+            # Don't retry on every page view; wait 5 minutes before trying again
+            _launch_cache['fetched_at'] = now - timedelta(seconds=LAUNCH_CACHE_SECONDS - 5 * 60)
+    return _launch_cache['data']
 
 @app.route('/api/aurora-status')
 def aurora_proxy():
