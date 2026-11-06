@@ -780,7 +780,7 @@ a.asteroid-name:hover {
 .iss-info .aurora-stats {
     grid-template-columns: 1fr;
 }
-/* Add to your stylesheet — replaces the inline colours the old script set */
+/* ISS status values (toggled by iss.html) */
 .iss-stats .stat-value.is-active {
     color: #22c55e;
 }
@@ -1419,92 +1419,76 @@ footer a:active {
 /* ───────────────────────────────
    RESPONSIVE DESIGN
 ─────────────────────────────── */
+.iss-globe svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Touch screens: no hover, so don't lift cards on tap */
+@media (hover: none) {
+    .card:hover {
+        transform: none;
+    }
+}
+
+/* Tablet / small laptop: stack two-column pages */
 @media (max-width: 1100px) {
     .hero {
         grid-template-columns: 1fr;
     }
-}
 
-@media (max-width: 768px) {
-    .app-layout {
-        flex-direction: column;
+    .iss-layout {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 1.5rem;
     }
 
-    .side-nav {
-        top: auto;
+    .iss-info {
+        flex: unset;
         width: 100%;
-        height: auto;
-        position: relative;
-        flex-direction: row;
-        padding: 0.75rem 1.5rem;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
+        align-self: unset;
     }
 
-    .side-nav nav ul {
-        flex-direction: row;
-        gap: 0.25rem;
-        flex-wrap: wrap;
+    .iss-globe {
+        margin-left: 0;
+        max-width: 600px;
+        width: 100%;
+        align-self: center;
+    }
+
+    .iss-stats,
+    .iss-info .aurora-stats {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        margin-top: 1.25rem;
+    }
+
+    .aurora-status {
+        margin-top: 1rem;
+    }
+
+    .aurora-map-container.iss-globe {
+        max-width: none;
+        height: 70vh;
+        min-height: 360px;
+    }
+
+    .asteroid-layout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    /* Footer text no longer fits one fixed bar: let it flow at the bottom of the page */
+    footer {
+        position: relative;
+        display: block;
+        height: auto;
+        padding: 0.9rem 1.5rem;
+        line-height: 1.7;
     }
 
     .main-content {
-        margin-left: 0;
-        padding: 1.5rem 1.5rem calc(var(--footer-h) + 1.5rem);
-    }
-
-    header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .hero-panel {
-        min-height: 280px;
-    }
-
-    .gallery {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .home-grid {
-        height: auto;
-    }
-
-    .apod-epic {
-        grid-template-columns: 1fr;
-        height: auto;
-    }
-
-    .apod-col,
-    .epic-col,
-    .apod-info {
-        height: auto;
-    }
-
-    .apod-hero-wrap {
-        flex-direction: column;
-    }
-
-    .apod-full-img {
-        height: auto;
-        width: 100%;
-        max-height: 50vh;
-    }
-
-    .apod-side-panel {
-        display: none;
-    }
-
-    .epic-img {
-        height: auto;
-        width: 100%;
-        aspect-ratio: 1 / 1;
-    }
-}
-
-@media (max-width: 768px) {
-    .asteroid-layout {
-        flex-direction: column;
+        padding-bottom: 2rem;
     }
 
     .asteroid-footnotes {
@@ -1517,6 +1501,179 @@ footer a:active {
     }
 }
 
+/* Phone / small tablet: sidebar becomes a scrollable tab strip */
+@media (max-width: 768px) {
+    .top-header {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        padding: 0 1rem;
+        gap: 0.75rem;
+    }
+
+    .top-header-name {
+        min-width: 0;
+        font-size: clamp(0.85rem, 4.2vw, 1.3rem);
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .app-layout {
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .side-nav {
+        position: sticky;
+        top: var(--header-h);
+        width: 100%;
+        height: auto;
+        padding: 0.5rem 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .side-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .side-nav nav ul {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+    }
+
+    .side-nav nav {
+        width: 100%;
+    }
+
+    .side-nav nav ul {
+        justify-content: space-between;
+    }
+
+    .side-nav nav ul li a {
+        white-space: nowrap;
+        padding: 0.45rem 0.6rem;
+        font-size: 0.82rem;
+    }
+
+    .main-content {
+        margin-left: 0;
+        padding: 1.25rem 1rem 1.5rem;
+    }
+
+    footer {
+        padding: 0.9rem 1rem;
+    }
+
+    .card {
+        padding: 1.25rem;
+        border-radius: 18px;
+    }
+
+    .card + .card {
+        margin-top: 1.25rem;
+    }
+
+    .card h2 {
+        font-size: 1.05rem;
+        margin-bottom: 0.8rem;
+    }
+
+    header:not(.top-header) {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hero-panel {
+        min-height: 280px;
+    }
+
+    .gallery {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Home: APOD + EPIC stack */
+    .home-grid {
+        height: auto;
+    }
+
+    .apod-epic {
+        grid-template-columns: 1fr;
+        height: auto;
+        gap: 1.25rem;
+    }
+
+    .apod-col,
+    .epic-col,
+    .apod-info,
+    .apod-col .card.apod-info {
+        height: auto;
+        overflow: visible;
+    }
+
+    .apod-hero-wrap {
+        flex-direction: column;
+        max-height: none;
+    }
+
+    .apod-full-img {
+        height: auto;
+        width: 100%;
+        max-height: 60vh;
+    }
+
+    .apod-full-iframe {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 9;
+    }
+
+    /* Hover overlays don't work on touch — show the text under the image instead */
+    .apod-hero-wrap .apod-overlay,
+    .apod-hero-wrap.landscape .apod-overlay {
+        display: none;
+    }
+
+    .apod-side-panel,
+    .apod-hero-wrap.landscape .apod-side-panel {
+        display: flex;
+        justify-content: flex-start;
+        padding: 1rem;
+        overflow: visible;
+    }
+
+    .epic-img {
+        height: auto;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+    }
+
+    /* Launches / asteroids: let long names and chips wrap */
+    .launch-title,
+    .asteroid-name {
+        overflow-wrap: anywhere;
+    }
+
+    .launch-chip {
+        white-space: normal;
+    }
+
+    .asteroid-card-meta {
+        gap: 1rem;
+    }
+
+    .asteroid-footnotes p {
+        font-size: 0.85rem;
+    }
+}
+
+/* Small phones */
 @media (max-width: 540px) {
     .gallery {
         grid-template-columns: 1fr;
@@ -1524,24 +1681,26 @@ footer a:active {
 
     .card,
     .hero-panel {
-        padding: 1.4rem;
+        padding: 1rem;
     }
 
-    .iss-layout {
-        flex-direction: column-reverse;
+    .iss-stats,
+    .iss-info .aurora-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .iss-info {
-        flex: unset;
-        width: 100%;
-        align-self: unset;
+    .stat-value {
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
     }
 
-    .iss-globe {
-        max-width: 100%;
+    .aurora-map-container.iss-globe {
+        height: 60vh;
+        min-height: 320px;
     }
 
-    .iss-stats {
-        grid-template-columns: repeat(3, 1fr);
+    .aw-footer {
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 }
