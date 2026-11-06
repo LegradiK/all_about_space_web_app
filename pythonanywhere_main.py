@@ -43,26 +43,32 @@ def get_apod():
     # (NASA logo, "NASA Science") or 503/504, and retires on 2026-12-01.
     # The new endpoint needs no API key.
     try:
-        response = requests.get("https://science.nasa.gov/wp-json/wp/v2/apod-basic", timeout=10)
+        response = requests.get(
+            'https://science.nasa.gov/wp-json/wp/v2/apod-basic',
+            params={
+                'per_page': 1,
+                '_fields': 'date,title,media_type,explanation,credit,copyright,alt,url,hdurl,permalink'
+            },
+            timeout=15
+        )
         response.raise_for_status()
-        data = response.json()      # a list, not a dict
-
+        data = response.json()
         if not data:
             print("APOD: empty response")
             return None
-        apod = data[0] 
+        item = data[0]  # the endpoint returns a list, newest first
         return {
-            'date': apod.get('date'),
-            'title': strip_html(apod.get('title')),
-            'media_type': apod.get('media_type'),
-            'explanation': strip_html(apod.get('explanation')),
-            'copyright': strip_html(apod.get('copyright') or apod.get('credit')),
-            'alt': apod.get('alt'),
+            'date': item.get('date'),
+            'title': strip_html(item.get('title')),
+            'media_type': item.get('media_type'),
+            'explanation': strip_html(item.get('explanation')),
+            'copyright': strip_html(item.get('copyright') or item.get('credit')),
+            'alt': item.get('alt'),
             # 'url' is now the article page, 'hdurl' is the actual image
-            'url': apod.get('hdurl'),
-            'hdurl': apod.get('hdurl'),
-            'permalink': apod.get('permalink') or apod.get('url'),
-            'source_url': apod.get('hdurl') or apod.get('permalink'),
+            'url': item.get('hdurl'),
+            'hdurl': item.get('hdurl'),
+            'permalink': item.get('permalink') or item.get('url'),
+            'source_url': item.get('hdurl') or item.get('permalink'),
         }
     except Exception as e:
         print("APOD fetch failed:", e)
@@ -90,6 +96,30 @@ def get_epic():
         return result
     except Exception as e:
         print("EPIC failed:", e)
+        return None
+
+def get_iss_position():
+    if not NASA_API:
+        print("ERROR: NASA_API key not found in .env")
+        return None
+    try:
+        response = requests.get(
+            "https://api.wheretheiss.at/v1/satellites/25544",
+            headers={"User-Agent": "space-dashboard/1.0"},
+            timeout=10,
+        )    
+        response.raise_for_status()
+        data = response.json()
+        return {
+            "lat": data["latitude"],
+            "lon": data["longitude"],
+            "alt_km": data["altitude"],
+            "speed_kmh": data["velocity"],
+            "visibility": data["visibility"],
+            "timestamp": data["timestamp"],
+        }
+    except Exception as e:
+        print("ISS tracking failed:", e)
         return None
 
 def get_neows():
@@ -163,8 +193,8 @@ def home():
 
 @app.route('/iss')
 def iss_page():
-    epic = get_epic()
-    return render_template("iss.html", epic=epic)
+    iss_tracking = get_iss_position()
+    return render_template("iss.html", iss=iss_tracking)
 
 @app.route('/launches')
 def launches_page():
