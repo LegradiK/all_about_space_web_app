@@ -37,6 +37,15 @@ def strip_html(text):
     return html.unescape(text).strip()
 
 
+def split_first_sentence(text):
+    # Split after the first . ! or ? that is followed by a space and a capital letter,
+    # so abbreviations like "e.g. the" don't cut the sentence short
+    parts = re.split(r'(?<=[.!?])\s+(?=[A-Z"\u201c(])', text or '', maxsplit=1)
+    first = parts[0].strip()
+    rest = parts[1].strip() if len(parts) > 1 else ''
+    return first, rest
+
+
 def get_apod():
     # APOD moved to science.nasa.gov on 2026-09-29. The old
     # api.nasa.gov/planetary/apod endpoint now returns a placeholder
@@ -57,11 +66,15 @@ def get_apod():
             print("APOD: empty response")
             return None
         item = data[0]  # the endpoint returns a list, newest first
+        explanation = strip_html(item.get('explanation'))
+        summary, more = split_first_sentence(explanation)
         return {
             'date': item.get('date'),
             'title': strip_html(item.get('title')),
             'media_type': item.get('media_type'),
-            'explanation': strip_html(item.get('explanation')),
+            'explanation': explanation,
+            'summary': summary,   # first sentence, shown by default
+            'more': more,         # the rest, revealed by "Read more"
             'copyright': strip_html(item.get('copyright') or item.get('credit')),
             'alt': item.get('alt'),
             # 'url' is now the article page, 'hdurl' is the actual image
