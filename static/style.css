@@ -325,6 +325,12 @@ a:hover {
     opacity: 1;
 }
 
+
+/* APOD "Read more" is a mobile-only feature (see 768px media query) */
+.apod-read-more {
+    display: none;
+}
+
 /* Side panel — visible when image leaves space (portrait image) */
 .apod-side-panel {
     flex: 1;
@@ -1467,10 +1473,16 @@ footer a:active {
         margin-top: 1rem;
     }
 
+    /* flex: 1 in a column layout ignores the height, so switch it off
+       and size the map from its width (UK + Ireland is taller than wide) */
     .aurora-map-container.iss-globe {
-        max-width: none;
-        height: 70vh;
-        min-height: 360px;
+        flex: none;
+        max-width: 600px;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 4 / 5;
+        max-height: 80vh;
+        min-height: 320px;
     }
 
     .asteroid-layout {
@@ -1648,6 +1660,18 @@ footer a:active {
         overflow: visible;
     }
 
+    /* APOD explanation: first sentence + "Read more" on phones */
+    .apod-explanation.collapsed .apod-more {
+        display: none;
+    }
+
+    .apod-side-panel .apod-read-more {
+        display: inline-block;
+        align-self: flex-start;
+        margin-top: 0.4rem;
+        color: #9fd0ff;
+    }
+
     .epic-img {
         height: auto;
         width: 100%;
@@ -1692,11 +1716,6 @@ footer a:active {
     .stat-value {
         font-size: 0.9rem;
         overflow-wrap: anywhere;
-    }
-
-    .aurora-map-container.iss-globe {
-        height: 60vh;
-        min-height: 320px;
     }
 
     .aw-footer {

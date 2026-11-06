@@ -72,27 +72,36 @@
   };
   const DOT_COLORS = { green: '#22c55e', yellow: '#eab308', amber: '#f97316', red: '#ef4444' };
 
-  const projection = d3.geoMercator()
-    .center([-3.5, 54.8])
-    .scale(2250)
-    .translate([200, 220]);
+  // Area that must always be visible: Ireland to East Anglia, Scilly to Shetland
+  const UK_BOUNDS = {
+    type: 'MultiPoint',
+    coordinates: [[-10.8, 49.8], [2.0, 49.8], [-10.8, 61.0], [2.0, 61.0]]
+  };
 
+  const projection = d3.geoMercator();
   const pathGen = d3.geoPath().projection(projection);
   let svgEl = null;
   let dotsGroup = null;
+  let worldData = null;   // cached so resizing doesn't refetch
+  let lastSites = null;   // replotted after a resize
 
   async function initMap() {
     const container = document.getElementById('auroraMapContainer');
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 520;
 
-    projection.translate([width / 2, height / 2]);
+    // Scale and centre the projection to fit whatever size the container is
+    const pad = Math.max(12, Math.min(width, height) * 0.05);
+    projection.fitExtent([[pad + 24, pad], [width - pad, height - pad]], UK_BOUNDS);
+
+    d3.select('#auroraMapContainer svg').remove();
 
     svgEl = d3.select('#auroraMapContainer')
       .append('svg')
       .attr('width', '100%')
       .attr('height', '100%')
       .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
       .style('display', 'block')
       .style('background', 'transparent');
 
@@ -105,17 +114,19 @@
         .attr('stroke', 'rgba(108,180,255,0.08)')
         .attr('stroke-width', 0.5)
         .attr('fill', 'none');
-      const [lx, ly] = projection([-8.5, lat]);
+      const [, ly] = projection([0, lat]);
       graticule.append('text')
-        .attr('x', lx).attr('y', ly + 3)
+        .attr('x', 4).attr('y', ly + 3)
         .attr('font-size', 8).attr('font-family', 'monospace')
         .attr('fill', 'rgba(169,184,208,0.4)')
         .text(lat + '°N');
     });
 
     try {
-      const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
-      const countries = topojson.feature(world, world.objects.countries);
+      if (!worldData) {
+        worldData = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
+      }
+      const countries = topojson.feature(worldData, worldData.objects.countries);
       const ukAndIreland = {
         type: 'FeatureCollection',
         features: countries.features.filter(f => ['826', '372'].includes(String(f.id)))
@@ -135,9 +146,22 @@
     }
 
     dotsGroup = svgEl.append('g');
+    if (lastSites) plotDots(lastSites);
   }
 
+  // Redraw when the screen is resized or a phone is rotated
+  let resizeTimer = null;
+  let lastWidth = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const w = document.getElementById('auroraMapContainer').clientWidth;
+      if (w !== lastWidth) { lastWidth = w; initMap(); }
+    }, 200);
+  });
+
   function plotDots(sites) {
+    lastSites = sites;
     if (!dotsGroup) return;
     dotsGroup.selectAll('*').remove();
     sites.filter(s => s.lat).forEach(s => {
@@ -162,7 +186,7 @@
 
       dotsGroup.append('text')
         .attr('x', cx + 8).attr('y', cy + 4)
-        .attr('font-size', 8).attr('font-family', 'sans-serif')
+        .attr('font-size', 9).attr('font-family', 'sans-serif')
         .attr('fill', 'rgba(169,184,208,0.8)')
         .text(s.name);
     });
@@ -218,7 +242,10 @@
     btn.disabled = false; btn.textContent = '↺ Refresh';
   };
 
-  requestAnimationFrame(() => initMap().then(() => auroraLoad()));
+  requestAnimationFrame(() => {
+    lastWidth = document.getElementById('auroraMapContainer').clientWidth;
+    initMap().then(() => auroraLoad());
+  });
   setInterval(auroraLoad, 3 * 60 * 1000);
 })();
 </script>

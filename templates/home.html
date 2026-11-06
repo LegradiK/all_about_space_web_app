@@ -20,7 +20,12 @@
                         </div>
                         <div class="apod-side-panel">
                             <span class="apod-date">{{ apod.date }}</span>
-                            <p class="apod-explanation">{{ apod.explanation }}</p>
+                            <p class="apod-explanation collapsed">
+                                {{ apod.summary }}{% if apod.more %}<span class="apod-more"> {{ apod.more }}</span>{% endif %}
+                            </p>
+                            {% if apod.more %}
+                                <button type="button" class="read-more-btn apod-read-more">Read more</button>
+                            {% endif %}
                         </div>
                     </div>
                     <a href="{{ apod.source_url }}" target="_blank">Open Full Resolution</a>
@@ -50,6 +55,15 @@
 </div>
 
 <script>
+// "Read more" / "Show less" for the APOD explanation (button only visible on phones)
+document.querySelectorAll('.apod-read-more').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const p = btn.previousElementSibling;
+        const collapsed = p.classList.toggle('collapsed');
+        btn.textContent = collapsed ? 'Read more' : 'Show less';
+    });
+});
+
 (function () {
     const img = document.getElementById('apodImg');
     if (!img) return;
