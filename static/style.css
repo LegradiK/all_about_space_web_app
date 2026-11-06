@@ -780,6 +780,16 @@ a.asteroid-name:hover {
 .iss-info .aurora-stats {
     grid-template-columns: 1fr;
 }
+/* Add to your stylesheet — replaces the inline colours the old script set */
+.iss-stats .stat-value.is-active {
+    color: #22c55e;
+}
+
+.iss-updated {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: #a9b8d0;
+}
 
 .aw-viewing {
     font-size: 0.75rem;

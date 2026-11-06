@@ -6,7 +6,12 @@
     <div class="card iss-layout">
         <div class="iss-info">
             <h2>ISS Tracker</h2>
-            <p class="iss-subtitle">Live position updated every 5 seconds by <a href="https://spotthestation.nasa.gov/" target="_blank">NASA</a></p>
+            <p class="iss-subtitle">
+                Live position updated every 5 seconds via
+                <a href="https://wheretheiss.at/" target="_blank" rel="noopener">wheretheiss.at</a>.
+                See when it passes over you at
+                <a href="https://spotthestation.nasa.gov/" target="_blank" rel="noopener">NASA Spot the Station</a>.
+            </p>
             <div class="stats-grid iss-stats">
                 <div class="stat-box">
                     <div class="stat-label">Latitude</div>
@@ -17,10 +22,23 @@
                     <div id="issLon" class="stat-value">—</div>
                 </div>
                 <div class="stat-box">
+                    <div class="stat-label">Altitude</div>
+                    <div id="issAlt" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Speed</div>
+                    <div id="issSpeed" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Sunlight</div>
+                    <div id="issVisibility" class="stat-value">—</div>
+                </div>
+                <div class="stat-box">
                     <div class="stat-label">Over UK</div>
                     <div id="issOverUK" class="stat-value">—</div>
                 </div>
             </div>
+            <p id="issUpdated" class="iss-updated"></p>
         </div>
         <div id="issMapContainer" class="map-container globe-container iss-globe">
             <svg id="issGlobe" viewBox="0 0 600 600"></svg>
@@ -153,33 +171,54 @@
             });
     }
 
+    const fmt = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+
+    function updateISS(data) {
+        issLat = data.lat;
+        issLon = data.lon;
+
+        issTrail.push([issLon, issLat]);
+        if (issTrail.length > MAX_TRAIL) issTrail.shift();
+
+        const ns = issLat >= 0 ? 'N' : 'S';
+        const ew = issLon >= 0 ? 'E' : 'W';
+        document.getElementById('issLat').textContent = Math.abs(issLat).toFixed(2) + '° ' + ns;
+        document.getElementById('issLon').textContent = Math.abs(issLon).toFixed(2) + '° ' + ew;
+        document.getElementById('issAlt').textContent = fmt.format(data.alt_km) + ' km';
+        document.getElementById('issSpeed').textContent = fmt.format(data.speed_kmh) + ' km/h';
+
+        const sunlit = data.visibility === 'daylight';
+        const visEl = document.getElementById('issVisibility');
+        visEl.textContent = sunlit ? 'Sunlit' : 'In shadow';
+        visEl.classList.toggle('is-active', sunlit);
+
+        const overUK = issLat >= 49.9 && issLat <= 60.9 && issLon >= -8.2 && issLon <= 2.0;
+        const ukEl = document.getElementById('issOverUK');
+        ukEl.textContent = overUK ? 'Yes' : 'No';
+        ukEl.classList.toggle('is-active', overUK);
+
+        const t = new Date(data.timestamp * 1000);
+        document.getElementById('issUpdated').textContent =
+            'Last update: ' + t.toLocaleTimeString('en-GB', { timeZone: 'Europe/London' });
+
+        rotateTo(issLon, issLat);
+    }
+
     async function fetchISS() {
         try {
-            const res = await fetch('http://api.open-notify.org/iss-now.json');
-            const data = await res.json();
-            issLat = parseFloat(data.iss_position.latitude);
-            issLon = parseFloat(data.iss_position.longitude);
-
-            issTrail.push([issLon, issLat]);
-            if (issTrail.length > MAX_TRAIL) issTrail.shift();
-
-            const ns = issLat >= 0 ? 'N' : 'S';
-            const ew = issLon >= 0 ? 'E' : 'W';
-            document.getElementById('issLat').textContent = Math.abs(issLat).toFixed(2) + '° ' + ns;
-            document.getElementById('issLon').textContent = Math.abs(issLon).toFixed(2) + '° ' + ew;
-
-            const overUK = issLat >= 49.9 && issLat <= 60.9 && issLon >= -8.2 && issLon <= 2.0;
-            const ukEl = document.getElementById('issOverUK');
-            ukEl.textContent = overUK ? 'Yes' : 'No';
-            ukEl.style.color = overUK ? '#22c55e' : '#a9b8d0';
-
-            rotateTo(issLon, issLat);
+            const res = await fetch('/api/iss');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            updateISS(await res.json());
         } catch (e) {
             console.error('ISS fetch failed', e);
         }
     }
 
-    fetchISS();
+    // First position rendered by Flask, so the globe doesn't wait 5s on load
+    const initial = {{ iss | tojson }};
+    if (initial) updateISS(initial);
+    else fetchISS();
+
     setInterval(fetchISS, 5000);
 })();
 </script>

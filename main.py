@@ -98,6 +98,30 @@ def get_epic():
         print("EPIC failed:", e)
         return None
 
+def get_iss_position():
+    if not NASA_API:
+        print("ERROR: NASA_API key not found in .env")
+        return None
+    try:
+        response = requests.get(
+            "https://api.wheretheiss.at/v1/satellites/25544",
+            headers={"User-Agent": "space-dashboard/1.0"},
+            timeout=10,
+        )    
+        response.raise_for_status()
+        data = response.json()
+        return {
+            "lat": data["latitude"],
+            "lon": data["longitude"],
+            "alt_km": data["altitude"],
+            "speed_kmh": data["velocity"],
+            "visibility": data["visibility"],
+            "timestamp": data["timestamp"],
+        }
+    except Exception as e:
+        print("ISS tracking failed:", e)
+        return None
+
 def get_neows():
     if not NASA_API:
         print("ERROR: NASA_API key not found in .env")
@@ -158,7 +182,7 @@ def get_launches():
 
 @app.route('/api/aurora-status')
 def aurora_proxy():
-    r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2/current-status.xml')
+    r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2.5/status/alerting-site-activity.xml')
     return Response(r.content, content_type='application/xml')
 
 @app.route('/')
@@ -169,8 +193,8 @@ def home():
 
 @app.route('/iss')
 def iss_page():
-    epic = get_epic()
-    return render_template("iss.html", epic=epic)
+    iss_tracking = get_iss_position()
+    return render_template("iss.html", iss=iss_tracking)
 
 @app.route('/launches')
 def launches_page():

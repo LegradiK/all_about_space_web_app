@@ -152,7 +152,7 @@ def get_launches():
 
 @app.route('/api/aurora-status')
 def aurora_proxy():
-    r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2/current-status.xml')
+    r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2.5/status/alerting-site-activity.xml')
     return Response(r.content, content_type='application/xml')
 
 @app.route('/')
