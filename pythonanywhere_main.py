@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 import random
 import pytz
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify
 from dotenv import load_dotenv
 
 
@@ -23,6 +23,10 @@ load_dotenv("data.env")
 NASA_API = os.getenv('NASA_API')
 
 app = Flask(__name__)
+
+# Imported after load_dotenv so the alert settings in data.env are available
+from alerts import alerts_bp
+app.register_blueprint(alerts_bp)
 
 def format_date(date_str):
     dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
@@ -220,6 +224,48 @@ def get_launches():
 def aurora_proxy():
     r = requests.get('https://aurorawatch-api.lancs.ac.uk/0.2.5/status/alerting-site-activity.xml')
     return Response(r.content, content_type='application/xml')
+
+
+# NOAA updates the OVATION forecast about every 5 minutes, so cache it
+# rather than downloading the ~1 MB file on every page view.
+AURORA_WORLD_CACHE_SECONDS = 5 * 60
+_aurora_world_cache = {'data': None, 'fetched_at': None}
+
+
+def fetch_aurora_world():
+    response = requests.get(
+        'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json',
+        timeout=20
+    )
+    response.raise_for_status()
+    data = response.json()
+    cells = []
+    for lon, lat, prob in data['coordinates']:
+        if prob < 1:
+            continue  # most of the globe is 0%, no need to send it
+        if lon > 180:
+            lon -= 360  # NOAA uses 0-359, D3 expects -180 to 180
+        cells.append([lon, lat, prob])
+    return {
+        'observation_time': data.get('Observation Time'),
+        'forecast_time': data.get('Forecast Time'),
+        'cells': cells,
+    }
+
+
+@app.route('/api/aurora-world')
+def aurora_world():
+    now = datetime.now()
+    fetched_at = _aurora_world_cache['fetched_at']
+    if not fetched_at or now - fetched_at >= timedelta(seconds=AURORA_WORLD_CACHE_SECONDS):
+        try:
+            _aurora_world_cache['data'] = fetch_aurora_world()
+            _aurora_world_cache['fetched_at'] = now
+        except Exception as e:
+            print("Aurora world forecast failed:", e)
+    if _aurora_world_cache['data'] is None:
+        return jsonify({'error': 'Forecast unavailable'}), 503
+    return jsonify(_aurora_world_cache['data'])
 
 @app.route('/')
 def home():

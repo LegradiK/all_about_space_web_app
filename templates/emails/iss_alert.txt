@@ -1,0 +1,14 @@
+The ISS flies over {{ city }} in {{ minutes }} minutes
+
+Go outside at {{ start }} and look {{ start_dir }}. It will look like a bright, steady star moving across the sky.
+
+Appears:       {{ start }} in the {{ start_dir }}
+Disappears:    {{ end }} in the {{ end_dir }}
+Highest point: {{ max_elevation }}° above the horizon
+Visible for:   about {{ duration }} minutes
+Brightness:    magnitude {{ magnitude }}
+Cloud cover:   {{ cloud }}%
+
+Track the ISS live: {{ iss_url }}
+
+Unsubscribe: {{ unsubscribe_url }}

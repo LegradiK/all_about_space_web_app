@@ -6,3 +6,6 @@ __pycache__/
 env/
 venv/
 
+
+# alert subscribers (contains email addresses)
+alerts.db

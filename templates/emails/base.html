@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { margin: 0; padding: 24px; background: #040d1a; font-family: Arial, Helvetica, sans-serif; color: #edf4ff; }
+  .mail { max-width: 520px; margin: 0 auto; background: #0c1c38; border: 1px solid #1d3a5c; border-radius: 16px; padding: 28px; }
+  .mail .mail-brand { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6cb4ff; margin: 0 0 16px; }
+  .mail h1 { font-size: 22px; margin: 0 0 12px; color: #edf4ff; }
+  .mail p { font-size: 15px; line-height: 1.55; color: #c6daf0; margin: 0 0 14px; }
+  .mail-facts { width: 100%; border-collapse: collapse; margin: 8px 0 18px; }
+  .mail-facts td { padding: 8px 0; border-bottom: 1px solid #1d3a5c; font-size: 14px; color: #c6daf0; }
+  .mail-facts td.mail-fact-label { color: #7a90aa; width: 45%; }
+  .mail-button { display: inline-block; background: #6cb4ff; color: #040d1a !important; text-decoration: none; font-weight: bold; padding: 11px 20px; border-radius: 8px; }
+  .mail-level-red { color: #ef4444; } .mail-level-amber { color: #f97316; } .mail-level-yellow { color: #eab308; }
+  .mail .mail-footer { font-size: 12px; color: #7a90aa; margin-top: 22px; }
+  .mail .mail-footer a { color: #7a90aa; }
+</style>
+</head>
+<body>
+  <div class="mail">
+    <p class="mail-brand">Horizon Intelligence</p>
+    {% block body %}{% endblock %}
+    <p class="mail-footer">You get this because you signed up for sky alerts for {{ sub.city }}.
+      <a href="{{ unsubscribe_url }}">Unsubscribe</a></p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block body %}
+<h1>Confirm your sky alerts</h1>
+<p>You asked for alerts for <strong>{{ sub.city }}</strong>:
+  {% if sub.want_iss %}ISS passes{% endif %}{% if sub.want_iss and sub.want_aurora %} and {% endif %}{% if sub.want_aurora %}aurora{% endif %}.</p>
+<p><a class="mail-button" href="{{ confirm_url }}">Switch my alerts on</a></p>
+<p>If this wasn't you, ignore this email and nothing will be sent.</p>
+{% endblock %}

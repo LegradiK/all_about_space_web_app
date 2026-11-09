@@ -5,6 +5,7 @@
             <li><a href="/launches" class="{{ 'active' if request.path == '/launches' }}">Launches</a></li>
             <li><a href="/asteroids" class="{{ 'active' if request.path == '/asteroids' }}">Asteroids</a></li>
             <li><a href="/aurora" class="{{ 'active' if request.path == '/aurora' }}">Aurora Watch</a></li>
+            <li><a href="/alerts" class="{{ 'active' if request.path.startswith('/alerts') }}">Sky Alerts</a></li>
         </ul>
     </nav>
 </aside>

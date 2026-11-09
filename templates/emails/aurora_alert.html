@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block body %}
+<h1>Good chance of seeing the aurora from {{ city }} now</h1>
+<p>AuroraWatch UK is at <strong class="mail-level-{{ level }}">{{ level|capitalize }}</strong>, it's dark in {{ city }} and the sky is only {{ cloud }}% cloudy.</p>
+<p>Get away from street lights and look <strong>north</strong>, low over the horizon. Give your eyes 10–15 minutes to adjust. A phone camera on night mode often picks up colour your eyes can't.</p>
+<p><a class="mail-button" href="{{ aurora_url }}">See live aurora activity</a></p>
+{% endblock %}

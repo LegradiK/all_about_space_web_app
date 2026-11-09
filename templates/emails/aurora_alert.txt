@@ -1,0 +1,9 @@
+Good chance of seeing the aurora from {{ city }} now
+
+AuroraWatch UK is at {{ level|capitalize }}, it's dark in {{ city }} and the sky is only {{ cloud }}% cloudy.
+
+Get away from street lights and look north, low over the horizon. Give your eyes 10-15 minutes to adjust. A phone camera on night mode often picks up colour your eyes can't.
+
+See live aurora activity: {{ aurora_url }}
+
+Unsubscribe: {{ unsubscribe_url }}

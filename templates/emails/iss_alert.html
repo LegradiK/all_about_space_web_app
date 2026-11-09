@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}
+{% block body %}
+<h1>The ISS flies over {{ city }} in {{ minutes }} minutes</h1>
+<p>Go outside at <strong>{{ start }}</strong> and look <strong>{{ start_dir }}</strong>. It will look like a bright, steady star moving across the sky, with no flashing lights.</p>
+<table class="mail-facts" role="presentation">
+  <tr><td class="mail-fact-label">Appears</td><td>{{ start }} in the {{ start_dir }}</td></tr>
+  <tr><td class="mail-fact-label">Disappears</td><td>{{ end }} in the {{ end_dir }}</td></tr>
+  <tr><td class="mail-fact-label">Highest point</td><td>{{ max_elevation }}° above the horizon</td></tr>
+  <tr><td class="mail-fact-label">Visible for</td><td>about {{ duration }} minutes</td></tr>
+  <tr><td class="mail-fact-label">Brightness</td><td>magnitude {{ magnitude }}</td></tr>
+  <tr><td class="mail-fact-label">Cloud cover</td><td>{{ cloud }}%</td></tr>
+</table>
+<p><a class="mail-button" href="{{ iss_url }}">Track the ISS live</a></p>
+{% endblock %}

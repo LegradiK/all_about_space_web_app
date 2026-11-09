@@ -1,0 +1,9 @@
+Confirm your Horizon Intelligence sky alerts
+
+You asked for alerts for {{ sub.city }}: {% if sub.want_iss %}ISS passes{% endif %}{% if sub.want_iss and sub.want_aurora %} and {% endif %}{% if sub.want_aurora %}aurora{% endif %}.
+
+Switch your alerts on: {{ confirm_url }}
+
+If this wasn't you, ignore this email and nothing will be sent.
+
+Unsubscribe: {{ unsubscribe_url }}

@@ -11,7 +11,8 @@ A space-themed live data dashboard built with Flask. Aggregates real-time data f
 | --------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Home**                  | NASA Astronomy Picture of the Day + two random Earth images from NASA EPIC                    |
 | **ISS Tracker**           | Live International Space Station position on an interactive D3 globe, updated every 5 seconds |
-| **Aurora Watch**          | Real-time geomagnetic activity across UK monitoring sites, sourced from AuroraWatch Lancaster |
+| **Aurora Watch**          | UK view: real-time geomagnetic activity across UK monitoring sites (AuroraWatch UK). World view: NOAA OVATION aurora forecast on a D3 globe with the best place to see it |
+| **Sky Alerts**            | Email sign-up for ISS pass alerts (~30 min before) and UK aurora alerts, checked against local weather |
 | **Asteroid Surveillance** | The 10 nearest asteroid close approaches in the next 7 days from NASA NeoWs                   |
 | **Launch Operations**     | Next 5 upcoming rocket launches with mission descriptions, linked to RocketLaunch.org         |
 
@@ -24,7 +25,9 @@ A space-themed live data dashboard built with Flask. Aggregates real-time data f
 - **Frontend** — Vanilla JS, D3.js v7, TopoJSON v3
 - **Styling** — Plain CSS with custom properties, dark/light mode via `data-theme` attribute
 
-No database, no task queue, no frontend framework.
+- **Alerts** — SQLite (subscribers), `sgp4` (ISS orbit), Gmail SMTP, GitHub Actions (scheduler)
+
+No task queue, no frontend framework.
 
 ---
 
@@ -85,7 +88,13 @@ Opens at `http://127.0.0.1:5000` with Flask debug mode enabled.
 ```
 all_about_space_web_app/
 ├── main.py               # Flask app — all routes and API fetch functions
-├── data.env              # NASA API key (gitignored)
+├── alerts.py             # Sky Alerts blueprint: sign-up, confirm, unsubscribe, alert check
+├── iss_passes.py         # Predicts visible ISS passes (sgp4 + sun position + Earth shadow)
+├── mailer.py             # Sends email over SMTP (Gmail)
+├── alerts.db             # Subscribers, created automatically (gitignored)
+├── data.env              # API keys and secrets (gitignored)
+├── .github/workflows/
+│   └── sky-alerts.yml    # Calls /tasks/check-alerts every 10 minutes
 ├── static/
 │   └── style.css         # All styles, CSS custom properties, dark/light theme
 └── templates/
@@ -96,7 +105,9 @@ all_about_space_web_app/
     ├── iss.html          # ISS tracker (D3 orthographic globe)
     ├── aurora.html       # Aurora Watch (D3 Mercator UK map)
     ├── asteroids.html    # Asteroid close-approach list
-    └── launches.html     # Upcoming launch list
+    ├── launches.html     # Upcoming launch list
+    ├── alerts.html       # Sky Alerts sign-up page
+    └── emails/           # Confirmation, ISS and aurora email templates (HTML + text)
 ```
 
 ---
@@ -115,12 +126,38 @@ all_about_space_web_app/
 
 ---
 
+## Sky Alerts
+
+Visitors sign up on `/alerts` with their email and closest city (from `static/cities.json`) and confirm by email.
+Every 10 minutes the GitHub Actions workflow `sky-alerts.yml` POSTs to `/tasks/check-alerts`, which:
+
+- **ISS** — predicts passes from the CelesTrak orbit and emails when a pass starts in 15–40 minutes, climbs ≥ 25°, is magnitude −1 or brighter, is sunlit while the city is dark, and Open-Meteo forecasts ≤ 40% cloud.
+- **Aurora** — emails when AuroraWatch UK is Red (whole UK), Amber (north of ~53.3°N) or Yellow (north of 57°N), the sun is 12°+ below the horizon and cloud cover is ≤ 50%. At most one email per night unless the level rises.
+
+City coordinates are looked up once with the Open-Meteo geocoding API and cached in `alerts.db`.
+
+### Setting up alerts
+
+1. **Gmail app password** — Google Account → Security → 2-Step Verification → App passwords. Put it in `data.env` as `MAIL_PASSWORD`, with your address as `MAIL_USERNAME`.
+2. **Token** — generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"` and put it in `data.env` as `ALERT_TASK_TOKEN`. Add `SITE_URL` too.
+3. **GitHub secrets** — repo Settings → Secrets and variables → Actions: add `SITE_URL` and `ALERT_TASK_TOKEN` (same values).
+4. **PythonAnywhere** — `pip install --user sgp4`, upload, reload the web app. Run the workflow once by hand from the Actions tab and check the JSON it prints.
+
+Without `MAIL_USERNAME` set, emails are printed to the console instead of sent, which is handy locally.
+
+---
+
 ## Environment Variables
 
 
 | Variable   | File       | Description                                |
 | ------------ | ------------ | -------------------------------------------- |
 | `NASA_API` | `data.env` | NASA Open APIs key — free at api.nasa.gov |
+| `MAIL_USERNAME` | `data.env` | Gmail address the alerts are sent from |
+| `MAIL_PASSWORD` | `data.env` | Gmail app password (not your normal password) |
+| `MAIL_FROM` | `data.env` | Optional sender name, e.g. `Horizon Intelligence <you@gmail.com>` |
+| `SITE_URL` | `data.env` + GitHub secret | Public site address, e.g. `https://legradik.pythonanywhere.com` |
+| `ALERT_TASK_TOKEN` | `data.env` + GitHub secret | Long random string that protects `/tasks/check-alerts` |
 
 ---
 
@@ -129,4 +166,6 @@ all_about_space_web_app/
 - No server-side caching — heavy API pages (NeoWs, launches) make fresh HTTP requests on every visit
 - The Space Devs free tier is rate-limited; the launches page may occasionally return a 429
 - ISS position is live but the Open Notify API has no SLA
+- GitHub pauses scheduled workflows after 60 days without repo activity; re-enable it from the Actions tab
+- Gmail limits sending to about 500 emails a day
 - No tests

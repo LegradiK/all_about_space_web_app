@@ -758,12 +758,43 @@ a.asteroid-name:hover {
 /* ───────────────────────────────
    AURORA WATCH
 ─────────────────────────────── */
+.aurora-view-toggle {
+    display: flex;
+    gap: 6px;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.aurora-view-btn {
+    flex: 1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: inherit;
+    transition: background 0.2s, color 0.2s;
+}
+
+.aurora-view-btn:hover {
+    opacity: 0.85;
+}
+
+.aurora-view-btn.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-primary);
+}
+
 .aurora-status {
     display: none;
     padding: 10px 12px;
     border-radius: 8px;
     border: 1px solid;
-    margin-top: 5rem;
+    margin-top: 0;
     margin-bottom: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
@@ -814,6 +845,32 @@ a.asteroid-name:hover {
     height: 740px;
 }
 
+.aurora-globe-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.aurora-globe-container svg {
+    cursor: grab;
+    max-height: 100%;
+}
+
+.aurora-globe-container svg:active {
+    cursor: grabbing;
+}
+
+.aurora-map-container[hidden] {
+    display: none;
+}
+
+.aw-site-coords {
+    font-size: 0.66rem;
+    font-family: monospace;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
 .aurora-map-loading {
     position: absolute;
     inset: 0;
@@ -825,11 +882,11 @@ a.asteroid-name:hover {
 }
 
 .aw-site-list {
-    margin-top: 12px;
+    margin-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 5px;
-    max-height: 180px;
+    max-height: 260px;
     overflow-y: auto;
 }
 
@@ -886,6 +943,100 @@ a.asteroid-name:hover {
 .aw-site-amber  .aw-site-dot { background: #f97316; }
 .aw-site-red    .aw-site-dot { background: #ef4444; }
 
+/* UK chance of seeing it (separate from AuroraWatch storm level colours) */
+.aw-list-title {
+    margin-top: 14px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.card .aw-list-title {
+    font-size: 0.7rem;
+    margin-bottom: 0;
+    color: var(--text-muted);
+}
+
+.aw-chance-very     { border-left-color: #ef4444; }
+.aw-chance-probably { border-left-color: #f97316; }
+.aw-chance-none     { border-left-color: #22c55e; }
+
+.aw-chance-very     .aw-site-dot,
+.aw-key-swatch.aw-chance-very     { background: #ef4444; }
+.aw-chance-probably .aw-site-dot,
+.aw-key-swatch.aw-chance-probably { background: #f97316; }
+.aw-chance-none     .aw-site-dot,
+.aw-key-swatch.aw-chance-none     { background: #22c55e; }
+
+.aw-chance-very     .aw-site-status { color: #ef4444; }
+.aw-chance-probably .aw-site-status { color: #f97316; }
+.aw-chance-none     .aw-site-status { color: #22c55e; }
+
+.aw-chance-item .aw-site-status {
+    text-transform: none;
+}
+
+.aw-city-weather {
+    margin-left: 8px;
+    font-size: 0.68rem;
+    font-family: monospace;
+    color: var(--text-muted);
+}
+
+.aw-map-key {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--divider);
+    background: rgba(7,20,38,0.75);
+    font-size: 0.7rem;
+    color: #c6daf0;
+}
+
+.aw-key-title {
+    font-family: monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #a9b8d0;
+}
+
+.aw-key-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aw-key-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    opacity: 0.75;
+}
+
+.aw-key-station {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--divider);
+}
+
+.aw-key-station-mark {
+    width: 7px;
+    height: 7px;
+    margin: 0 2.5px;
+    transform: rotate(45deg);
+    border: 1.2px solid #edf4ff;
+    background: rgba(7,20,38,0.9);
+}
+
 .aw-site-green  .aw-site-status { color: #22c55e; }
 .aw-site-yellow .aw-site-status { color: #eab308; }
 .aw-site-amber  .aw-site-status { color: #f97316; }
@@ -895,6 +1046,175 @@ a.asteroid-name:hover {
 .aw-level-yellow { color: #eab308; }
 .aw-level-amber  { color: #f97316; }
 .aw-level-red    { color: #ef4444; }
+
+/* ───────────────────────────────
+   SKY ALERTS
+─────────────────────────────── */
+.alerts-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4rem;
+    max-width: 1100px;
+}
+
+.alerts-signup .iss-subtitle {
+    margin-bottom: 1.5rem;
+}
+
+.alerts-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.alerts-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.alerts-label {
+    font-size: 0.7rem;
+    font-family: monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.alerts-input {
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.alerts-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.alerts-choices {
+    border: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.alerts-choices legend {
+    margin-bottom: 6px;
+}
+
+.alerts-choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--divider);
+    background: var(--surface-subtle);
+    font-size: 0.85rem;
+    color: var(--text-body);
+    cursor: pointer;
+}
+
+.alerts-choice input {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+}
+
+.alerts-submit {
+    align-self: flex-start;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--bg-primary);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.alerts-submit:hover {
+    opacity: 0.85;
+}
+
+.alerts-small {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.alerts-message,
+.alerts-error {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+}
+
+.alerts-message {
+    background: rgba(34,197,94,0.08);
+    border-color: rgba(34,197,94,0.33);
+    color: #22c55e;
+}
+
+.alerts-error {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.33);
+    color: #ef4444;
+}
+
+.card .alerts-how h3 {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.alerts-rule {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--divider);
+    background: var(--surface-subtle);
+    margin-bottom: 0.9rem;
+}
+
+.alerts-rule h4 {
+    font-size: 0.78rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+}
+
+.alerts-rule ul {
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.alerts-rule li {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-body);
+}
+
+@media (max-width: 900px) {
+    .alerts-layout {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
 
 /* ───────────────────────────────
    HEADER
@@ -1391,7 +1711,7 @@ footer a:active {
 
 .iss-stats {
     grid-template-columns: 1fr;
-    margin-top: 5rem;
+    margin-top: 1.5rem;
     margin-bottom: 0;
 }
 
@@ -1469,7 +1789,7 @@ footer a:active {
         margin-top: 1.25rem;
     }
 
-    .aurora-status {
+    .aurora-view-toggle {
         margin-top: 1rem;
     }
 
@@ -1483,6 +1803,28 @@ footer a:active {
         aspect-ratio: 4 / 5;
         max-height: 80vh;
         min-height: 320px;
+    }
+
+    .aw-map-key {
+        left: 6px;
+        top: 6px;
+        gap: 3px;
+        padding: 6px 8px;
+        font-size: 0.6rem;
+    }
+
+    .aw-key-title {
+        font-size: 0.56rem;
+    }
+
+    .aw-key-swatch {
+        width: 9px;
+        height: 9px;
+    }
+
+    /* the globe is round, so keep its box square */
+    .aurora-globe-container.iss-globe {
+        aspect-ratio: 1 / 1;
     }
 
     .asteroid-layout {

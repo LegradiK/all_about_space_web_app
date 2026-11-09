@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Sky Alerts — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="card alerts-layout">
+        <section class="alerts-signup">
+            <h2>Sky Alerts</h2>
+            <p class="iss-subtitle">Get an email when the ISS is about to fly over your city, or when there is a good chance of seeing the aurora from it. Only when the sky is clear enough to be worth going outside.</p>
+
+            {% if message %}
+            <p class="alerts-message" role="status">{{ message }}</p>
+            {% endif %}
+            {% if error %}
+            <p class="alerts-error" role="alert">{{ error }}</p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('alerts.subscribe') }}" class="alerts-form">
+                <label class="alerts-field">
+                    <span class="alerts-label">Email</span>
+                    <input type="email" name="email" required autocomplete="email"
+                           value="{{ form.email or '' }}" class="alerts-input" placeholder="you@example.com">
+                </label>
+
+                <label class="alerts-field">
+                    <span class="alerts-label">Closest city</span>
+                    <input type="text" name="city" list="alertsCityList" required autocomplete="off"
+                           value="{{ form.city or '' }}" class="alerts-input" placeholder="Start typing, e.g. Manchester">
+                    <datalist id="alertsCityList">
+                        {% for city in cities %}
+                        <option value="{{ city }}">
+                        {% endfor %}
+                    </datalist>
+                </label>
+
+                <fieldset class="alerts-choices">
+                    <legend class="alerts-label">Alert me about</legend>
+                    <label class="alerts-choice">
+                        <input type="checkbox" name="want_iss" value="1" {{ 'checked' if form.want_iss or not form }}>
+                        <span>ISS passes, about 30 minutes before</span>
+                    </label>
+                    <label class="alerts-choice">
+                        <input type="checkbox" name="want_aurora" value="1" {{ 'checked' if form.want_aurora or not form }}>
+                        <span>Aurora visible from my city</span>
+                    </label>
+                </fieldset>
+
+                <button type="submit" class="alerts-submit">Sign up</button>
+                <p class="alerts-small">We will send a confirmation email first. Every alert has a one-click unsubscribe link.</p>
+            </form>
+        </section>
+
+        <section class="alerts-how">
+            <h3>When will I get an email?</h3>
+
+            <div class="alerts-rule">
+                <h4>ISS pass</h4>
+                <ul>
+                    <li>About 30 minutes before the ISS appears.</li>
+                    <li>It climbs at least 25° above the horizon and is bright (magnitude −1 or brighter).</li>
+                    <li>It is sunlit while your sky is dark, so you can actually see it.</li>
+                    <li>The forecast cloud cover for your city is 40% or less.</li>
+                </ul>
+            </div>
+
+            <div class="alerts-rule">
+                <h4>Aurora</h4>
+                <ul>
+                    <li><strong>Red</strong> AuroraWatch UK alert: anywhere in the UK.</li>
+                    <li><strong>Amber</strong>: northern England, Northern Ireland and Scotland.</li>
+                    <li><strong>Yellow</strong>: northern Scotland only.</li>
+                    <li>Only when it is properly dark and cloud cover is 50% or less.</li>
+                    <li>At most one email a night, unless the storm gets stronger.</li>
+                </ul>
+            </div>
+
+            <p class="alerts-small">Data: ISS orbit from <a href="https://celestrak.org/" target="_blank" rel="noopener">CelesTrak</a>,
+                aurora from <a href="https://aurorawatch.lancs.ac.uk/" target="_blank" rel="noopener">AuroraWatch UK</a>,
+                weather from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>
+        </section>
+    </div>
+</div>
+
+{% endblock %}
