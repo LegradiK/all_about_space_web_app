@@ -1209,6 +1209,51 @@ a.asteroid-name:hover {
     color: var(--text-body);
 }
 
+.alerts-channel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.alerts-field[hidden] {
+    display: none;
+}
+
+.alerts-connect {
+    max-width: 560px;
+}
+
+.alerts-telegram-btn {
+    display: inline-block;
+    margin: 0.5rem 0 1.5rem;
+    padding: 12px 28px;
+    border-radius: 8px;
+    background: #229ed9;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.alerts-telegram-btn:hover {
+    opacity: 0.85;
+}
+
+.alerts-steps {
+    padding-left: 1.2rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.alerts-steps li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-body);
+}
+
 @media (max-width: 900px) {
     .alerts-layout {
         grid-template-columns: 1fr;

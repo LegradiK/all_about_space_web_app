@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Connect Telegram — Horizon Intelligence{% endblock %}
+{% block content %}
+
+<div class="page-container">
+    <div class="card alerts-connect">
+        <h2>One last step</h2>
+        <p class="iss-subtitle">Open our Telegram bot and press <strong>Start</strong>. The bot will reply to confirm your alerts for <strong>{{ sub.city }}</strong>.</p>
+
+        <a href="{{ link }}" class="alerts-telegram-btn" target="_blank" rel="noopener">Open Telegram</a>
+
+        <ol class="alerts-steps">
+            <li>Tap <strong>Open Telegram</strong>. On a computer, this opens Telegram Desktop or Telegram Web.</li>
+            <li>Press <strong>Start</strong> at the bottom of the chat.</li>
+            <li>You'll get a "Sky alerts are on" message. That's it.</li>
+        </ol>
+
+        <p class="alerts-small">No Telegram yet? Install it from <a href="https://telegram.org/" target="_blank" rel="noopener">telegram.org</a> and come back to this page. This link works for 24 hours.</p>
+        <p class="alerts-small"><a href="{{ url_for('alerts.alerts_page') }}">← Back to Sky Alerts</a></p>
+    </div>
+</div>
+
+{% endblock %}

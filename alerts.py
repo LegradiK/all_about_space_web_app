@@ -1,7 +1,8 @@
 """Email alerts for ISS passes and UK aurora.
 
-Visitors sign up on /alerts with their email and closest city, then confirm
-by email. A GitHub Actions workflow POSTs to /tasks/check-alerts every
+Visitors sign up on /alerts with their closest city and choose how to hear
+about it: by email (confirmed with a link) or Telegram (confirmed by pressing
+Start in the bot). A GitHub Actions workflow POSTs to /tasks/check-alerts every
 10 minutes; that check sends:
 
   - ISS alert: a visible pass starts in 15–40 minutes (usually ~30) AND it is
@@ -13,6 +14,7 @@ Settings (data.env):
     SITE_URL          e.g. https://legradik.pythonanywhere.com (for links in emails)
     ALERT_TASK_TOKEN  long random string, also stored as a GitHub secret
     MAIL_USERNAME / MAIL_PASSWORD   see mailer.py
+    TELEGRAM_*        see telegram_bot.py
 """
 import hmac
 import json
@@ -27,6 +29,7 @@ import requests
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 
 import iss_passes
+import telegram_bot
 from mailer import send_email
 
 alerts_bp = Blueprint('alerts', __name__)
@@ -51,6 +54,7 @@ AURORA_DARK_SUN_ALT = -12         # sun this far below the horizon (nautical dar
 AURORA_MAX_CLOUD = 50             # % cloud cover
 
 CONFIRM_RESEND_MINUTES = 5
+TELEGRAM_PENDING_HOURS = 24   # unused Telegram sign-up links expire after this
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
@@ -62,22 +66,43 @@ def get_db():
     return conn
 
 
+SUBSCRIBERS_SQL = '''
+    CREATE TABLE IF NOT EXISTS subscribers (
+        id INTEGER PRIMARY KEY,
+        channel TEXT NOT NULL DEFAULT 'email',   -- 'email' or 'telegram'
+        email TEXT,
+        telegram_chat_id INTEGER,
+        city TEXT NOT NULL,
+        lat REAL NOT NULL,
+        lon REAL NOT NULL,
+        want_iss INTEGER NOT NULL DEFAULT 1,
+        want_aurora INTEGER NOT NULL DEFAULT 1,
+        token TEXT UNIQUE NOT NULL,
+        confirmed INTEGER NOT NULL DEFAULT 0,
+        confirm_sent_at TEXT,
+        created_at TEXT NOT NULL
+    )
+'''
+
+
 def init_db():
     with get_db() as db:
+        columns = [r['name'] for r in db.execute('PRAGMA table_info(subscribers)')]
+        if columns and 'channel' not in columns:
+            # Older email-only table: rebuild it with the new columns, keeping everyone
+            db.execute('ALTER TABLE subscribers RENAME TO subscribers_old')
+            db.execute(SUBSCRIBERS_SQL)
+            db.execute('''INSERT INTO subscribers (id, channel, email, city, lat, lon, want_iss, want_aurora,
+                              token, confirmed, confirm_sent_at, created_at)
+                          SELECT id, 'email', email, city, lat, lon, want_iss, want_aurora,
+                              token, confirmed, confirm_sent_at, created_at FROM subscribers_old''')
+            db.execute('DROP TABLE subscribers_old')
+        db.execute(SUBSCRIBERS_SQL)
         db.executescript('''
-            CREATE TABLE IF NOT EXISTS subscribers (
-                id INTEGER PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-                city TEXT NOT NULL,
-                lat REAL NOT NULL,
-                lon REAL NOT NULL,
-                want_iss INTEGER NOT NULL DEFAULT 1,
-                want_aurora INTEGER NOT NULL DEFAULT 1,
-                token TEXT UNIQUE NOT NULL,
-                confirmed INTEGER NOT NULL DEFAULT 0,
-                confirm_sent_at TEXT,
-                created_at TEXT NOT NULL
-            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_subscribers_email
+                ON subscribers(email) WHERE channel = 'email';
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_subscribers_chat
+                ON subscribers(telegram_chat_id) WHERE channel = 'telegram' AND telegram_chat_id IS NOT NULL;
             CREATE TABLE IF NOT EXISTS sent_alerts (
                 subscriber_id INTEGER NOT NULL,
                 kind TEXT NOT NULL,
@@ -193,6 +218,34 @@ def send_confirmation(sub):
     )
 
 
+def delete_subscriber(db, sub_id):
+    db.execute('DELETE FROM sent_alerts WHERE subscriber_id = ?', (sub_id,))
+    db.execute('DELETE FROM subscribers WHERE id = ?', (sub_id,))
+
+
+def notify(db, sub, kind, subject, context):
+    """Send one alert by the subscriber's channel. Returns True if it went out.
+
+    kind is the template name: emails/<kind>.html + .txt, or telegram/<kind>.html
+    """
+    unsubscribe_url = site_url(f'/alerts/unsubscribe/{sub["token"]}')
+    context = dict(context, sub=sub, unsubscribe_url=unsubscribe_url)
+    if sub['channel'] == 'telegram':
+        try:
+            telegram_bot.send_message(sub['telegram_chat_id'],
+                                      render_template(f'telegram/{kind}.html', **context))
+            return True
+        except telegram_bot.ChatGone:
+            delete_subscriber(db, sub['id'])   # they blocked the bot, so stop for good
+        except Exception as e:
+            print(f"Telegram to {sub['telegram_chat_id']} failed:", e)
+        return False
+    return send_email(sub['email'], subject,
+                      render_template(f'emails/{kind}.txt', **context),
+                      render_template(f'emails/{kind}.html', **context),
+                      unsubscribe_url)
+
+
 def already_sent(db, sub_id, kind, key=None, within=None):
     if key is not None:
         row = db.execute('SELECT 1 FROM sent_alerts WHERE subscriber_id=? AND kind=? AND alert_key=?',
@@ -236,26 +289,18 @@ def check_iss(db, subs, now):
 
             key = p['start'].strftime('%Y-%m-%dT%H:%M')
             for s in people:
-                # passes are ~90 minutes apart, so one email per hour is one per pass
+                # passes are ~90 minutes apart, so one alert per hour is one per pass
                 if already_sent(db, s['id'], 'iss', key, within=timedelta(minutes=60)):
                     continue
-                unsubscribe_url = site_url(f'/alerts/unsubscribe/{s["token"]}')
                 context = dict(
-                    sub=s, city=city, minutes=round(minutes), cloud=cloud,
+                    city=city, minutes=round(minutes), cloud=cloud,
                     start=uk_time(p['start']), end=uk_time(p['end']),
                     start_dir=p['start_dir'], end_dir=p['end_dir'],
                     max_elevation=round(p['max_elevation']), duration=p['duration_min'],
-                    magnitude=round(p['magnitude'], 1),
-                    iss_url=site_url('/iss'), unsubscribe_url=unsubscribe_url,
+                    magnitude=round(p['magnitude'], 1), iss_url=site_url('/iss'),
                 )
-                ok = send_email(
-                    s['email'],
-                    f'ISS visible over {city} at {context["start"]}, look {p["start_dir"]}',
-                    render_template('emails/iss_alert.txt', **context),
-                    render_template('emails/iss_alert.html', **context),
-                    unsubscribe_url,
-                )
-                if ok:
+                subject = f'ISS visible over {city} at {context["start"]}, look {p["start_dir"]}'
+                if notify(db, s, 'iss_alert', subject, context):
                     record_sent(db, s['id'], 'iss', key)
                     sent += 1
     return sent
@@ -285,17 +330,9 @@ def check_aurora(db, subs, now):
         if any(already_sent(db, s['id'], 'aurora', f'{night}:{l}')
                for l in order[order.index(level):]):
             continue
-        unsubscribe_url = site_url(f'/alerts/unsubscribe/{s["token"]}')
-        context = dict(sub=s, city=s['city'], level=level, cloud=cloud,
-                       aurora_url=site_url('/aurora'), unsubscribe_url=unsubscribe_url)
-        ok = send_email(
-            s['email'],
-            f'Aurora alert for {s["city"]}: {level.capitalize()}, sky {cloud}% cloudy',
-            render_template('emails/aurora_alert.txt', **context),
-            render_template('emails/aurora_alert.html', **context),
-            unsubscribe_url,
-        )
-        if ok:
+        context = dict(city=s['city'], level=level, cloud=cloud, aurora_url=site_url('/aurora'))
+        subject = f'Aurora alert for {s["city"]}: {level.capitalize()}, sky {cloud}% cloudy'
+        if notify(db, s, 'aurora_alert', subject, context):
             record_sent(db, s['id'], 'aurora', f'{night}:{level}')
             sent += 1
     return sent
@@ -313,8 +350,10 @@ def check_and_send(now=None):
             except Exception as e:
                 print(f"Alert check {name} failed:", e)
                 summary['errors'].append(f'{name}: {e}')
-        # tidy up old records
+        # tidy up old records and Telegram sign-ups nobody finished
         db.execute('DELETE FROM sent_alerts WHERE sent_at < ?', ((now - timedelta(days=7)).isoformat(),))
+        db.execute("DELETE FROM subscribers WHERE channel = 'telegram' AND confirmed = 0 AND created_at < ?",
+                   ((now - timedelta(hours=TELEGRAM_PENDING_HOURS)).isoformat(),))
     return summary
 
 
@@ -323,7 +362,7 @@ def check_and_send(now=None):
 MESSAGES = {
     'check-email': 'Nearly there! We have sent you an email. Click the link in it to switch your alerts on.',
     'confirmed': 'Your alerts are on. We will email you when the ISS or the aurora is worth looking up for.',
-    'unsubscribed': 'You have been unsubscribed. No more alert emails will be sent.',
+    'unsubscribed': 'You have been unsubscribed. No more alerts will be sent.',
     'bad-link': 'That link is not valid any more. You can sign up again below.',
     'resend-wait': 'We sent you a confirmation email a moment ago. Please check your inbox (and spam folder).',
 }
@@ -333,12 +372,14 @@ MESSAGES = {
 def alerts_page():
     message = MESSAGES.get(request.args.get('status'))
     return render_template('alerts.html', cities=load_cities(), message=message,
-                           error=None, form={})
+                           error=None, form={}, telegram_enabled=telegram_bot.is_configured())
 
 
 @alerts_bp.route('/alerts', methods=['POST'])
 def subscribe():
+    telegram_enabled = telegram_bot.is_configured()
     form = {
+        'channel': 'telegram' if telegram_enabled and request.form.get('channel') == 'telegram' else 'email',
         'email': (request.form.get('email') or '').strip().lower(),
         'city': (request.form.get('city') or '').strip(),
         'want_iss': bool(request.form.get('want_iss')),
@@ -346,7 +387,7 @@ def subscribe():
     }
     cities = load_cities()
     error = None
-    if not EMAIL_RE.match(form['email']):
+    if form['channel'] == 'email' and not EMAIL_RE.match(form['email']):
         error = 'Please enter a valid email address.'
     elif form['city'] not in cities:
         error = 'Please choose your closest city from the list.'
@@ -362,11 +403,23 @@ def subscribe():
         if not coords:
             error = 'Sorry, we could not find that city on the map. Please choose another one nearby.'
     if error:
-        return render_template('alerts.html', cities=cities, message=None, error=error, form=form), 400
+        return render_template('alerts.html', cities=cities, message=None, error=error, form=form,
+                               telegram_enabled=telegram_enabled), 400
 
     now = utcnow()
+    if form['channel'] == 'telegram':
+        # Saved as pending until the user presses Start in the bot (see telegram_webhook)
+        token = secrets.token_urlsafe(24)
+        with get_db() as db:
+            db.execute('''INSERT INTO subscribers (channel, city, lat, lon, want_iss, want_aurora,
+                          token, created_at) VALUES ('telegram', ?, ?, ?, ?, ?, ?, ?)''',
+                       (form['city'], coords[0], coords[1], int(form['want_iss']),
+                        int(form['want_aurora']), token, now.isoformat()))
+        return redirect(url_for('alerts.telegram_connect', token=token))
+
     with get_db() as db:
-        existing = db.execute('SELECT * FROM subscribers WHERE email = ?', (form['email'],)).fetchone()
+        existing = db.execute("SELECT * FROM subscribers WHERE channel = 'email' AND email = ?",
+                              (form['email'],)).fetchone()
         if existing and existing['confirm_sent_at'] and \
                 now - datetime.fromisoformat(existing['confirm_sent_at']) < timedelta(minutes=CONFIRM_RESEND_MINUTES):
             return redirect(url_for('alerts.alerts_page', status='resend-wait'))
@@ -379,9 +432,10 @@ def subscribe():
                           token=?, confirmed=0, confirm_sent_at=? WHERE id=?''', values + (existing['id'],))
         else:
             db.execute('''INSERT INTO subscribers (city, lat, lon, want_iss, want_aurora, token,
-                          confirm_sent_at, email, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          confirm_sent_at, email, channel, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'email', ?)''',
                        values + (form['email'], now.isoformat()))
-        sub = db.execute('SELECT * FROM subscribers WHERE email = ?', (form['email'],)).fetchone()
+        sub = db.execute("SELECT * FROM subscribers WHERE channel = 'email' AND email = ?",
+                         (form['email'],)).fetchone()
     send_confirmation(sub)
     return redirect(url_for('alerts.alerts_page', status='check-email'))
 
@@ -389,7 +443,7 @@ def subscribe():
 @alerts_bp.route('/alerts/confirm/<token>')
 def confirm(token):
     with get_db() as db:
-        cur = db.execute('UPDATE subscribers SET confirmed = 1 WHERE token = ?', (token,))
+        cur = db.execute("UPDATE subscribers SET confirmed = 1 WHERE token = ? AND channel = 'email'", (token,))
     return redirect(url_for('alerts.alerts_page', status='confirmed' if cur.rowcount else 'bad-link'))
 
 
@@ -398,8 +452,7 @@ def unsubscribe(token):
     with get_db() as db:
         sub = db.execute('SELECT id FROM subscribers WHERE token = ?', (token,)).fetchone()
         if sub:
-            db.execute('DELETE FROM sent_alerts WHERE subscriber_id = ?', (sub['id'],))
-            db.execute('DELETE FROM subscribers WHERE id = ?', (sub['id'],))
+            delete_subscriber(db, sub['id'])
     return redirect(url_for('alerts.alerts_page', status='unsubscribed' if sub else 'bad-link'))
 
 
@@ -413,3 +466,72 @@ def run_check():
 
 
 init_db()
+
+
+# ───────────────────────── Telegram ─────────────────────────
+
+@alerts_bp.route('/alerts/telegram/<token>')
+def telegram_connect(token):
+    """Page with the "Open Telegram" button for a pending Telegram sign-up."""
+    with get_db() as db:
+        sub = db.execute("SELECT * FROM subscribers WHERE token = ? AND channel = 'telegram'",
+                         (token,)).fetchone()
+    if not sub:
+        return redirect(url_for('alerts.alerts_page', status='bad-link'))
+    return render_template('alerts_telegram.html', sub=sub, link=telegram_bot.start_link(token))
+
+
+def _reply(chat_id, template, **context):
+    try:
+        telegram_bot.send_message(chat_id, render_template(f'telegram/{template}.html',
+                                                           alerts_url=site_url('/alerts'), **context))
+    except Exception as e:
+        print("Telegram reply failed:", e)
+
+
+@alerts_bp.route('/telegram/webhook', methods=['POST'])
+def telegram_webhook():
+    """Telegram calls this for every message sent to the bot."""
+    expected = os.getenv('TELEGRAM_WEBHOOK_SECRET')
+    given = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+    if not expected or not hmac.compare_digest(given, expected):
+        abort(403)
+
+    message = (request.get_json(silent=True) or {}).get('message') or {}
+    chat_id = (message.get('chat') or {}).get('id')
+    text = (message.get('text') or '').strip()
+    if not chat_id or not text.startswith('/'):
+        if chat_id:
+            _reply(chat_id, 'help')
+        return 'ok'
+
+    command, _, arg = text.partition(' ')
+    command = command.split('@')[0].lower()   # "/start@HorizonIntelBot" in group chats
+
+    with get_db() as db:
+        current = db.execute("SELECT * FROM subscribers WHERE channel = 'telegram' AND telegram_chat_id = ?",
+                             (chat_id,)).fetchone()
+
+        if command == '/start' and arg:
+            pending = db.execute("SELECT * FROM subscribers WHERE token = ? AND channel = 'telegram'",
+                                 (arg.strip(),)).fetchone()
+            # a link already used by a different chat can't be taken over
+            if not pending or (pending['telegram_chat_id'] and pending['telegram_chat_id'] != chat_id):
+                _reply(chat_id, 'bad_link')
+                return 'ok'
+            # One subscription per chat: new settings replace any old ones
+            if current and current['id'] != pending['id']:
+                delete_subscriber(db, current['id'])
+            db.execute('UPDATE subscribers SET telegram_chat_id = ?, confirmed = 1 WHERE id = ?',
+                       (chat_id, pending['id']))
+            sub = db.execute('SELECT * FROM subscribers WHERE id = ?', (pending['id'],)).fetchone()
+            _reply(chat_id, 'welcome', sub=sub)
+        elif command == '/stop':
+            if current:
+                delete_subscriber(db, current['id'])
+            _reply(chat_id, 'stopped')
+        elif command == '/status':
+            _reply(chat_id, 'status', sub=current)
+        else:
+            _reply(chat_id, 'help')
+    return 'ok'

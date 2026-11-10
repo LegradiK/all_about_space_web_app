@@ -1,0 +1,7 @@
+{% if sub %}<b>Your sky alerts</b>
+
+City: {{ sub.city }}
+ISS passes: {{ 'on' if sub.want_iss else 'off' }}
+Aurora: {{ 'on' if sub.want_aurora else 'off' }}
+
+To change these, sign up again on <a href="{{ alerts_url }}">Sky Alerts</a> and the new settings will replace these. /stop turns alerts off.{% else %}You don't have any sky alerts yet. Sign up on <a href="{{ alerts_url }}">Sky Alerts</a> and choose Telegram.{% endif %}

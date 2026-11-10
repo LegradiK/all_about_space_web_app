@@ -12,7 +12,7 @@ A space-themed live data dashboard built with Flask. Aggregates real-time data f
 | **Home**                  | NASA Astronomy Picture of the Day + two random Earth images from NASA EPIC                    |
 | **ISS Tracker**           | Live International Space Station position on an interactive D3 globe, updated every 5 seconds |
 | **Aurora Watch**          | UK view: real-time geomagnetic activity across UK monitoring sites (AuroraWatch UK). World view: NOAA OVATION aurora forecast on a D3 globe with the best place to see it |
-| **Sky Alerts**            | Email sign-up for ISS pass alerts (~30 min before) and UK aurora alerts, checked against local weather |
+| **Sky Alerts**            | Sign-up for ISS pass alerts (~30 min before) and UK aurora alerts by email or Telegram, checked against local weather |
 | **Asteroid Surveillance** | The 10 nearest asteroid close approaches in the next 7 days from NASA NeoWs                   |
 | **Launch Operations**     | Next 5 upcoming rocket launches with mission descriptions, linked to RocketLaunch.org         |
 
@@ -25,7 +25,7 @@ A space-themed live data dashboard built with Flask. Aggregates real-time data f
 - **Frontend** — Vanilla JS, D3.js v7, TopoJSON v3
 - **Styling** — Plain CSS with custom properties, dark/light mode via `data-theme` attribute
 
-- **Alerts** — SQLite (subscribers), `sgp4` (ISS orbit), Gmail SMTP, GitHub Actions (scheduler)
+- **Alerts** — SQLite (subscribers), `sgp4` (ISS orbit), Gmail SMTP, Telegram Bot API, GitHub Actions (scheduler)
 
 No task queue, no frontend framework.
 
@@ -91,6 +91,8 @@ all_about_space_web_app/
 ├── alerts.py             # Sky Alerts blueprint: sign-up, confirm, unsubscribe, alert check
 ├── iss_passes.py         # Predicts visible ISS passes (sgp4 + sun position + Earth shadow)
 ├── mailer.py             # Sends email over SMTP (Gmail)
+├── telegram_bot.py       # Sends Telegram messages from the bot
+├── telegram_setup.py     # One-off: points the bot's webhook at this site
 ├── alerts.db             # Subscribers, created automatically (gitignored)
 ├── data.env              # API keys and secrets (gitignored)
 ├── .github/workflows/
@@ -107,7 +109,9 @@ all_about_space_web_app/
     ├── asteroids.html    # Asteroid close-approach list
     ├── launches.html     # Upcoming launch list
     ├── alerts.html       # Sky Alerts sign-up page
-    └── emails/           # Confirmation, ISS and aurora email templates (HTML + text)
+    ├── alerts_telegram.html  # "Open Telegram" step after choosing Telegram
+    ├── emails/           # Confirmation, ISS and aurora email templates (HTML + text)
+    └── telegram/         # Telegram alert and bot reply messages
 ```
 
 ---
@@ -128,7 +132,7 @@ all_about_space_web_app/
 
 ## Sky Alerts
 
-Visitors sign up on `/alerts` with their email and closest city (from `static/cities.json`) and confirm by email.
+Visitors sign up on `/alerts` with their closest city (from `static/cities.json`) and choose **email** (confirmed by a link) or **Telegram** (confirmed by pressing Start in the bot, which sends `/start <token>` to the webhook). In Telegram, `/status` shows their settings and `/stop` turns alerts off; anyone who blocks the bot is removed automatically.
 Every 10 minutes the GitHub Actions workflow `sky-alerts.yml` POSTs to `/tasks/check-alerts`, which:
 
 - **ISS** — predicts passes from the CelesTrak orbit and emails when a pass starts in 15–40 minutes, climbs ≥ 25°, is magnitude −1 or brighter, is sunlit while the city is dark, and Open-Meteo forecasts ≤ 40% cloud.
@@ -141,7 +145,8 @@ City coordinates are looked up once with the Open-Meteo geocoding API and cached
 1. **Gmail app password** — Google Account → Security → 2-Step Verification → App passwords. Put it in `data.env` as `MAIL_PASSWORD`, with your address as `MAIL_USERNAME`.
 2. **Token** — generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"` and put it in `data.env` as `ALERT_TASK_TOKEN`. Add `SITE_URL` too.
 3. **GitHub secrets** — repo Settings → Secrets and variables → Actions: add `SITE_URL` and `ALERT_TASK_TOKEN` (same values).
-4. **PythonAnywhere** — `pip install --user sgp4`, upload, reload the web app. Run the workflow once by hand from the Actions tab and check the JSON it prints.
+4. **Telegram bot** — in Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot` and pick a name and a username ending in `bot`. Put the token in `data.env` as `TELEGRAM_BOT_TOKEN`, the username (no @) as `TELEGRAM_BOT_USERNAME`, and a random string as `TELEGRAM_WEBHOOK_SECRET`. The Telegram option only appears on the form once these are set.
+5. **PythonAnywhere** — `pip install --user sgp4`, upload, reload the web app, then run `python telegram_setup.py` once in a Bash console to connect the bot to `/telegram/webhook`. Run the GitHub workflow once by hand from the Actions tab and check the JSON it prints.
 
 Without `MAIL_USERNAME` set, emails are printed to the console instead of sent, which is handy locally.
 
@@ -158,6 +163,9 @@ Without `MAIL_USERNAME` set, emails are printed to the console instead of sent, 
 | `MAIL_FROM` | `data.env` | Optional sender name, e.g. `Horizon Intelligence <you@gmail.com>` |
 | `SITE_URL` | `data.env` + GitHub secret | Public site address, e.g. `https://legradik.pythonanywhere.com` |
 | `ALERT_TASK_TOKEN` | `data.env` + GitHub secret | Long random string that protects `/tasks/check-alerts` |
+| `TELEGRAM_BOT_TOKEN` | `data.env` | Bot token from @BotFather |
+| `TELEGRAM_BOT_USERNAME` | `data.env` | Bot username without the @, used for the "Open Telegram" link |
+| `TELEGRAM_WEBHOOK_SECRET` | `data.env` | Random string Telegram sends back on every webhook call |
 
 ---
 

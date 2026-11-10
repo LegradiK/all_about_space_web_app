@@ -1,0 +1,5 @@
+✅ <b>Sky alerts are on for {{ sub.city }}</b>
+
+You'll get a message when {% if sub.want_iss %}the ISS is about to fly over (about 30 minutes before){% endif %}{% if sub.want_iss and sub.want_aurora %} and when {% endif %}{% if sub.want_aurora %}there's a good chance of seeing the aurora{% endif %}, but only when the sky is clear enough to be worth going outside.
+
+/status shows your settings · /stop turns alerts off

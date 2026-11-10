@@ -6,7 +6,7 @@
     <div class="card alerts-layout">
         <section class="alerts-signup">
             <h2>Sky Alerts</h2>
-            <p class="iss-subtitle">Get an email when the ISS is about to fly over your city, or when there is a good chance of seeing the aurora from it. Only when the sky is clear enough to be worth going outside.</p>
+            <p class="iss-subtitle">Get an email or Telegram message when the ISS is about to fly over your city, or when there is a good chance of seeing the aurora from it. Only when the sky is clear enough to be worth going outside.</p>
 
             {% if message %}
             <p class="alerts-message" role="status">{{ message }}</p>
@@ -16,7 +16,23 @@
             {% endif %}
 
             <form method="post" action="{{ url_for('alerts.subscribe') }}" class="alerts-form">
-                <label class="alerts-field">
+                {% if telegram_enabled %}
+                <fieldset class="alerts-choices">
+                    <legend class="alerts-label">Send my alerts by</legend>
+                    <div class="alerts-channel">
+                        <label class="alerts-choice">
+                            <input type="radio" name="channel" value="email" {{ 'checked' if form.channel != 'telegram' }}>
+                            <span>Email</span>
+                        </label>
+                        <label class="alerts-choice">
+                            <input type="radio" name="channel" value="telegram" {{ 'checked' if form.channel == 'telegram' }}>
+                            <span>Telegram</span>
+                        </label>
+                    </div>
+                </fieldset>
+                {% endif %}
+
+                <label id="alertsEmailField" class="alerts-field">
                     <span class="alerts-label">Email</span>
                     <input type="email" name="email" required autocomplete="email"
                            value="{{ form.email or '' }}" class="alerts-input" placeholder="you@example.com">
@@ -46,12 +62,13 @@
                 </fieldset>
 
                 <button type="submit" class="alerts-submit">Sign up</button>
-                <p class="alerts-small">We will send a confirmation email first. Every alert has a one-click unsubscribe link.</p>
+                <p id="alertsSmallEmail" class="alerts-small">We will send a confirmation email first. Every alert has a one-click unsubscribe link.</p>
+                <p id="alertsSmallTelegram" class="alerts-small" hidden>Next you'll open our Telegram bot and press Start. Send /stop to the bot at any time to turn alerts off.</p>
             </form>
         </section>
 
         <section class="alerts-how">
-            <h3>When will I get an email?</h3>
+            <h3>When will I get an alert?</h3>
 
             <div class="alerts-rule">
                 <h4>ISS pass</h4>
@@ -70,7 +87,7 @@
                     <li><strong>Amber</strong>: northern England, Northern Ireland and Scotland.</li>
                     <li><strong>Yellow</strong>: northern Scotland only.</li>
                     <li>Only when it is properly dark and cloud cover is 50% or less.</li>
-                    <li>At most one email a night, unless the storm gets stronger.</li>
+                    <li>At most one alert a night, unless the storm gets stronger.</li>
                 </ul>
             </div>
 
@@ -81,4 +98,22 @@
     </div>
 </div>
 
+{% if telegram_enabled %}
+<script>
+  // Email address is only needed for email alerts
+  (function () {
+    const field = document.getElementById('alertsEmailField');
+    const input = field.querySelector('input');
+    function update() {
+      const telegram = document.querySelector('input[name="channel"]:checked').value === 'telegram';
+      field.hidden = telegram;
+      input.required = !telegram;
+      document.getElementById('alertsSmallEmail').hidden = telegram;
+      document.getElementById('alertsSmallTelegram').hidden = !telegram;
+    }
+    document.querySelectorAll('input[name="channel"]').forEach(r => r.addEventListener('change', update));
+    update();
+  })();
+</script>
+{% endif %}
 {% endblock %}

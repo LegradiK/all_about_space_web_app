@@ -1,0 +1,24 @@
+name: Sky alerts
+
+# Every 10 minutes, ask the website to check for ISS passes and aurora
+# and email anyone who should look up. The site does the work; this just
+# wakes it up. GitHub may delay scheduled runs by a few minutes.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:   # lets you run it by hand from the Actions tab
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger alert check
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 240 \
+            -X POST \
+            -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
+            "$SITE_URL/tasks/check-alerts"
