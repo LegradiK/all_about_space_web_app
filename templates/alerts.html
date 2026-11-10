@@ -16,7 +16,6 @@
             {% endif %}
 
             <form method="post" action="{{ url_for('alerts.subscribe') }}" class="alerts-form">
-                {% if telegram_enabled %}
                 <fieldset class="alerts-choices">
                     <legend class="alerts-label">Send my alerts by</legend>
                     <div class="alerts-channel">
@@ -24,13 +23,14 @@
                             <input type="radio" name="channel" value="email" {{ 'checked' if form.channel != 'telegram' }}>
                             <span>Email</span>
                         </label>
-                        <label class="alerts-choice">
-                            <input type="radio" name="channel" value="telegram" {{ 'checked' if form.channel == 'telegram' }}>
-                            <span>Telegram</span>
+                        <label class="alerts-choice{{ '' if telegram_enabled else ' alerts-choice-disabled' }}">
+                            <input type="radio" name="channel" value="telegram"
+                                   {{ 'checked' if telegram_enabled and form.channel == 'telegram' }}
+                                   {{ 'disabled' if not telegram_enabled }}>
+                            <span>Telegram{% if not telegram_enabled %} <span class="alerts-choice-note">(not set up yet)</span>{% endif %}</span>
                         </label>
                     </div>
                 </fieldset>
-                {% endif %}
 
                 <label id="alertsEmailField" class="alerts-field">
                     <span class="alerts-label">Email</span>
@@ -98,7 +98,6 @@
     </div>
 </div>
 
-{% if telegram_enabled %}
 <script>
   // Email address is only needed for email alerts
   (function () {
@@ -115,5 +114,4 @@
     update();
   })();
 </script>
-{% endif %}
 {% endblock %}

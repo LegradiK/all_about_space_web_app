@@ -18,7 +18,8 @@ def rocketlaunch_url(name):
     return f'https://rocketlaunch.org/mission-{slug}'
 
 
-load_dotenv("data.env")
+# Load data.env from this file's folder, whatever the working directory is (matters on PythonAnywhere)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.env"))
 
 NASA_API = os.getenv('NASA_API')
 

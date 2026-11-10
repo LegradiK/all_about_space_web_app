@@ -467,6 +467,12 @@ def run_check():
 
 init_db()
 
+_missing = telegram_bot.missing_settings()
+if _missing:
+    print(f"Sky Alerts: Telegram is OFF (missing in data.env: {', '.join(_missing)}). Email only.")
+else:
+    print("Sky Alerts: Telegram is ON.")
+
 
 # ───────────────────────── Telegram ─────────────────────────
 

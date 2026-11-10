@@ -18,7 +18,15 @@ class ChatGone(Exception):
     """The user blocked the bot or deleted the chat, so stop messaging them."""
 
 
+REQUIRED_SETTINGS = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_USERNAME', 'TELEGRAM_WEBHOOK_SECRET']
+
+
+def missing_settings():
+    return [name for name in REQUIRED_SETTINGS if not os.getenv(name)]
+
+
 def is_configured():
+    """Sign-ups need the token and username; the webhook secret is checked separately."""
     return bool(os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('TELEGRAM_BOT_USERNAME'))
 
 

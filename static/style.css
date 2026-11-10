@@ -1215,6 +1215,16 @@ a.asteroid-name:hover {
     gap: 8px;
 }
 
+.alerts-choice-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.alerts-choice-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
 .alerts-field[hidden] {
     display: none;
 }
