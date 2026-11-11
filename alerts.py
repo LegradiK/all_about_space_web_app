@@ -110,6 +110,12 @@ def init_db():
                 sent_at TEXT NOT NULL,
                 PRIMARY KEY (subscriber_id, kind, alert_key)
             );
+            CREATE TABLE IF NOT EXISTS telegram_outbox (
+                id INTEGER PRIMARY KEY,
+                chat_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS city_coords (
                 name TEXT PRIMARY KEY,
                 lat REAL NOT NULL,
@@ -231,15 +237,27 @@ def notify(db, sub, kind, subject, context):
     unsubscribe_url = site_url(f'/alerts/unsubscribe/{sub["token"]}')
     context = dict(context, sub=sub, unsubscribe_url=unsubscribe_url)
     if sub['channel'] == 'telegram':
-        try:
-            telegram_bot.send_message(sub['telegram_chat_id'],
-                                      render_template(f'telegram/{kind}.html', **context))
-            return True
-        except telegram_bot.ChatGone:
-            delete_subscriber(db, sub['id'])   # they blocked the bot, so stop for good
-        except Exception as e:
-            print(f"Telegram to {sub['telegram_chat_id']} failed:", e)
-        return False
+        text = render_template(f'telegram/{kind}.html', **context)
+        mode = telegram_bot.delivery_mode()
+        if mode != 'github':
+            try:
+                telegram_bot.send_message(sub['telegram_chat_id'], text)
+                return True
+            except telegram_bot.ChatGone:
+                delete_subscriber(db, sub['id'])   # they blocked the bot, so stop for good
+                return False
+            except telegram_bot.TelegramUnreachable as e:
+                if mode == 'direct':
+                    print(f"Telegram unreachable:", e)
+                    return False
+                # fall through: let the GitHub Action deliver it
+            except Exception as e:
+                print(f"Telegram to {sub['telegram_chat_id']} failed:", e)
+                return False
+        # Queued here, handed to the GitHub Action in this check's response
+        db.execute('INSERT INTO telegram_outbox (chat_id, text, created_at) VALUES (?, ?, ?)',
+                   (sub['telegram_chat_id'], text, utcnow().isoformat()))
+        return True
     return send_email(sub['email'], subject,
                       render_template(f'emails/{kind}.txt', **context),
                       render_template(f'emails/{kind}.html', **context),
@@ -354,6 +372,14 @@ def check_and_send(now=None):
         db.execute('DELETE FROM sent_alerts WHERE sent_at < ?', ((now - timedelta(days=7)).isoformat(),))
         db.execute("DELETE FROM subscribers WHERE channel = 'telegram' AND confirmed = 0 AND created_at < ?",
                    ((now - timedelta(hours=TELEGRAM_PENDING_HOURS)).isoformat(),))
+
+        # Telegram messages the site couldn't send itself: the GitHub Action sends these.
+        # Anything older than an hour is dropped, since an alert that late is no use.
+        outbox = db.execute('SELECT id, chat_id, text, created_at FROM telegram_outbox ORDER BY id').fetchall()
+        fresh = (now - timedelta(hours=1)).isoformat()
+        summary['telegram_outbox'] = [{'chat_id': r['chat_id'], 'text': r['text']}
+                                      for r in outbox if r['created_at'] >= fresh]
+        db.execute('DELETE FROM telegram_outbox')
     return summary
 
 
@@ -488,11 +514,9 @@ def telegram_connect(token):
 
 
 def _reply(chat_id, template, **context):
-    try:
-        telegram_bot.send_message(chat_id, render_template(f'telegram/{template}.html',
-                                                           alerts_url=site_url('/alerts'), **context))
-    except Exception as e:
-        print("Telegram reply failed:", e)
+    """Reply in the webhook response, so it works even when we can't reach api.telegram.org."""
+    html = render_template(f'telegram/{template}.html', alerts_url=site_url('/alerts'), **context)
+    return jsonify(telegram_bot.webhook_reply(chat_id, html))
 
 
 @alerts_bp.route('/telegram/webhook', methods=['POST'])
@@ -506,10 +530,10 @@ def telegram_webhook():
     message = (request.get_json(silent=True) or {}).get('message') or {}
     chat_id = (message.get('chat') or {}).get('id')
     text = (message.get('text') or '').strip()
-    if not chat_id or not text.startswith('/'):
-        if chat_id:
-            _reply(chat_id, 'help')
+    if not chat_id:
         return 'ok'
+    if not text.startswith('/'):
+        return _reply(chat_id, 'help')
 
     command, _, arg = text.partition(' ')
     command = command.split('@')[0].lower()   # "/start@HorizonIntelBot" in group chats
@@ -523,21 +547,36 @@ def telegram_webhook():
                                  (arg.strip(),)).fetchone()
             # a link already used by a different chat can't be taken over
             if not pending or (pending['telegram_chat_id'] and pending['telegram_chat_id'] != chat_id):
-                _reply(chat_id, 'bad_link')
-                return 'ok'
+                return _reply(chat_id, 'bad_link')
             # One subscription per chat: new settings replace any old ones
             if current and current['id'] != pending['id']:
                 delete_subscriber(db, current['id'])
             db.execute('UPDATE subscribers SET telegram_chat_id = ?, confirmed = 1 WHERE id = ?',
                        (chat_id, pending['id']))
             sub = db.execute('SELECT * FROM subscribers WHERE id = ?', (pending['id'],)).fetchone()
-            _reply(chat_id, 'welcome', sub=sub)
-        elif command == '/stop':
+            return _reply(chat_id, 'welcome', sub=sub)
+        if command == '/stop':
             if current:
                 delete_subscriber(db, current['id'])
-            _reply(chat_id, 'stopped')
-        elif command == '/status':
-            _reply(chat_id, 'status', sub=current)
-        else:
-            _reply(chat_id, 'help')
-    return 'ok'
+            return _reply(chat_id, 'stopped')
+        if command == '/status':
+            return _reply(chat_id, 'status', sub=current)
+    return _reply(chat_id, 'help')
+
+
+@alerts_bp.route('/tasks/telegram-gone', methods=['POST'])
+def telegram_gone():
+    """The GitHub Action reports chats that blocked the bot, so we stop messaging them."""
+    expected = os.getenv('ALERT_TASK_TOKEN')
+    given = request.headers.get('X-Alert-Token', '')
+    if not expected or not hmac.compare_digest(given, expected):
+        abort(403)
+    chat_ids = [int(c) for c in (request.get_json(silent=True) or {}).get('chat_ids', [])]
+    removed = 0
+    with get_db() as db:
+        for chat_id in chat_ids:
+            for row in db.execute("SELECT id FROM subscribers WHERE channel = 'telegram' AND telegram_chat_id = ?",
+                                  (chat_id,)).fetchall():
+                delete_subscriber(db, row['id'])
+                removed += 1
+    return jsonify({'removed': removed})

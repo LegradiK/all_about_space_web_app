@@ -140,13 +140,18 @@ Every 10 minutes the GitHub Actions workflow `sky-alerts.yml` POSTs to `/tasks/c
 
 City coordinates are looked up once with the Open-Meteo geocoding API and cached in `alerts.db`.
 
+**Telegram on PythonAnywhere's free tier.** The free tier can't reach `api.telegram.org`, so nothing Telegram-related needs it:
+- bot replies (`/start`, `/status`, `/stop`, `/help`) are returned in the webhook's HTTP response, which Telegram delivers itself;
+- Telegram alerts are queued and returned by `/tasks/check-alerts`; the GitHub Action sends them and reports blocked chats back to `/tasks/telegram-gone`. Set `TELEGRAM_DELIVERY=github` to skip trying to send directly (`auto`, the default, tries first and queues on failure);
+- run `telegram_setup.py` on your own computer (with `SITE_URL` pointing at the live site), not on PythonAnywhere.
+
 ### Setting up alerts
 
 1. **Gmail app password** — Google Account → Security → 2-Step Verification → App passwords. Put it in `data.env` as `MAIL_PASSWORD`, with your address as `MAIL_USERNAME`.
 2. **Token** — generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"` and put it in `data.env` as `ALERT_TASK_TOKEN`. Add `SITE_URL` too.
-3. **GitHub secrets** — repo Settings → Secrets and variables → Actions: add `SITE_URL` and `ALERT_TASK_TOKEN` (same values).
+3. **GitHub secrets** — repo Settings → Secrets and variables → Actions: add `SITE_URL`, `ALERT_TASK_TOKEN` and, for Telegram, `TELEGRAM_BOT_TOKEN` (same values as `data.env`).
 4. **Telegram bot** — in Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot` and pick a name and a username ending in `bot`. Put the token in `data.env` as `TELEGRAM_BOT_TOKEN`, the username (no @) as `TELEGRAM_BOT_USERNAME`, and a random string as `TELEGRAM_WEBHOOK_SECRET`. The Telegram option only appears on the form once these are set.
-5. **PythonAnywhere** — `pip install --user sgp4`, upload, reload the web app, then run `python telegram_setup.py` once in a Bash console to connect the bot to `/telegram/webhook`. Run the GitHub workflow once by hand from the Actions tab and check the JSON it prints.
+5. **PythonAnywhere** — install the requirements in the web app's virtualenv, upload, reload the web app. Then, on your own computer, run `python telegram_setup.py` once to connect the bot to `/telegram/webhook`. Run the GitHub workflow once by hand from the Actions tab and check the JSON it prints.
 
 Without `MAIL_USERNAME` set, emails are printed to the console instead of sent, which is handy locally.
 
@@ -166,6 +171,7 @@ Without `MAIL_USERNAME` set, emails are printed to the console instead of sent, 
 | `TELEGRAM_BOT_TOKEN` | `data.env` | Bot token from @BotFather |
 | `TELEGRAM_BOT_USERNAME` | `data.env` | Bot username without the @, used for the "Open Telegram" link |
 | `TELEGRAM_WEBHOOK_SECRET` | `data.env` | Random string Telegram sends back on every webhook call |
+| `TELEGRAM_DELIVERY` | `data.env` | `github` on PythonAnywhere free tier (alerts sent by the GitHub Action); default `auto` |
 
 ---
 

@@ -4,6 +4,10 @@ Settings (data.env):
     TELEGRAM_BOT_TOKEN       from @BotFather, e.g. 123456:ABC-DEF...
     TELEGRAM_BOT_USERNAME    the bot's username without @, e.g. HorizonIntelBot
     TELEGRAM_WEBHOOK_SECRET  long random string; Telegram sends it back with every update
+    TELEGRAM_DELIVERY        how alerts reach Telegram (see alerts.py):
+                               auto   - send directly, queue for GitHub Actions if that fails (default)
+                               github - always queue; the GitHub Action sends them
+                               direct - send directly only
 
 If TELEGRAM_BOT_TOKEN is not set, messages are printed to the console instead.
 """
@@ -16,6 +20,15 @@ API = 'https://api.telegram.org/bot{token}/{method}'
 
 class ChatGone(Exception):
     """The user blocked the bot or deleted the chat, so stop messaging them."""
+
+
+class TelegramUnreachable(RuntimeError):
+    """Couldn't connect to Telegram at all (e.g. PythonAnywhere's free-tier proxy)."""
+
+
+def delivery_mode():
+    mode = (os.getenv('TELEGRAM_DELIVERY') or 'auto').lower()
+    return mode if mode in ('auto', 'github', 'direct') else 'auto'
 
 
 REQUIRED_SETTINGS = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_USERNAME', 'TELEGRAM_WEBHOOK_SECRET']
@@ -44,7 +57,7 @@ def call(method, **payload):
         response = requests.post(API.format(token=token, method=method), json=payload, timeout=15)
     except requests.RequestException as e:
         # requests puts the full URL (including the bot token) in its errors, so hide it
-        raise RuntimeError(f"Telegram {method} failed: {str(e).replace(token, '<TOKEN>')}") from None
+        raise TelegramUnreachable(f"Telegram {method} failed: {str(e).replace(token, '<TOKEN>')}") from None
     data = response.json()
     if not data.get('ok'):
         # 403 = blocked by the user, 400 "chat not found" = chat deleted
@@ -54,7 +67,17 @@ def call(method, **payload):
     return data
 
 
+def message_payload(chat_id, html):
+    """sendMessage parameters using Telegram's HTML formatting (<b>, <i>, <a href>)."""
+    return {'chat_id': chat_id, 'text': html, 'parse_mode': 'HTML',
+            'link_preview_options': {'is_disabled': True}}
+
+
 def send_message(chat_id, html):
-    """Send a message using Telegram's HTML formatting (<b>, <i>, <a href>)."""
-    return call('sendMessage', chat_id=chat_id, text=html, parse_mode='HTML',
-                link_preview_options={'is_disabled': True})
+    return call('sendMessage', **message_payload(chat_id, html))
+
+
+def webhook_reply(chat_id, html):
+    """A reply returned as the webhook's HTTP response. Telegram sends it for us,
+    so no outgoing connection to api.telegram.org is needed."""
+    return dict(method='sendMessage', **message_payload(chat_id, html))
