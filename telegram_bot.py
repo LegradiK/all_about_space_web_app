@@ -40,7 +40,11 @@ def call(method, **payload):
     if not token:
         print(f"[telegram not configured] {method}: {payload}")
         return {'ok': True}
-    response = requests.post(API.format(token=token, method=method), json=payload, timeout=15)
+    try:
+        response = requests.post(API.format(token=token, method=method), json=payload, timeout=15)
+    except requests.RequestException as e:
+        # requests puts the full URL (including the bot token) in its errors, so hide it
+        raise RuntimeError(f"Telegram {method} failed: {str(e).replace(token, '<TOKEN>')}") from None
     data = response.json()
     if not data.get('ok'):
         # 403 = blocked by the user, 400 "chat not found" = chat deleted
