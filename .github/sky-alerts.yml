@@ -1,0 +1,73 @@
+name: Sky alerts
+
+# Every 10 minutes, ask the website to check for ISS passes and aurora and
+# send the alerts. The site sends emails itself; Telegram messages come back
+# in the response and are sent from here, because PythonAnywhere's free tier
+# can't reach api.telegram.org. GitHub may delay scheduled runs by a few minutes.
+#
+# Logs of public repos are public, so this only prints counts, never message
+# text, chat IDs or tokens.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:   # lets you run it by hand from the Actions tab
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check alerts and send Telegram messages
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --max-time 240 \
+            -X POST \
+            -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
+            -o result.json \
+            "$SITE_URL/tasks/check-alerts"
+
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+
+          result = json.load(open('result.json'))
+          print(f"Subscribers: {result.get('subscribers')}, "
+                f"ISS alerts: {result.get('iss_sent')}, aurora alerts: {result.get('aurora_sent')}")
+          for err in result.get('errors', []):
+              print('Site error:', err)
+
+          outbox = result.get('telegram_outbox', [])
+          token = os.environ.get('TELEGRAM_BOT_TOKEN')
+          if outbox and not token:
+              print(f'{len(outbox)} Telegram message(s) waiting, but the TELEGRAM_BOT_TOKEN secret is not set')
+              raise SystemExit(1)
+
+          sent, gone = 0, []
+          for msg in outbox:
+              payload = {'chat_id': msg['chat_id'], 'text': msg['text'], 'parse_mode': 'HTML',
+                         'link_preview_options': {'is_disabled': True}}
+              req = urllib.request.Request(
+                  f'https://api.telegram.org/bot{token}/sendMessage',
+                  data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
+              try:
+                  urllib.request.urlopen(req, timeout=15)
+                  sent += 1
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode(errors='replace')
+                  if e.code == 403 or 'chat not found' in body:
+                      gone.append(msg['chat_id'])   # blocked the bot or deleted the chat
+                  else:
+                      print('Telegram error', e.code)
+          print(f'Telegram sent: {sent}/{len(outbox)}, blocked/gone: {len(gone)}')
+
+          if gone:
+              req = urllib.request.Request(
+                  os.environ['SITE_URL'].rstrip('/') + '/tasks/telegram-gone',
+                  data=json.dumps({'chat_ids': gone}).encode(),
+                  headers={'Content-Type': 'application/json',
+                           'X-Alert-Token': os.environ['ALERT_TASK_TOKEN']})
+              print('Removed from site:', json.load(urllib.request.urlopen(req, timeout=30)).get('removed'))
+          PY
+          rm -f result.json

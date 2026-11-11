@@ -1250,6 +1250,55 @@ a.asteroid-name:hover {
     opacity: 0.85;
 }
 
+.alerts-fallback {
+    padding: 12px 14px;
+    margin-bottom: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid var(--divider);
+    background: var(--surface-subtle);
+}
+
+.alerts-fallback-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.alerts-code-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.alerts-code {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    user-select: all;
+}
+
+.alerts-copy-btn {
+    flex-shrink: 0;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+    cursor: pointer;
+}
+
 .alerts-steps {
     padding-left: 1.2rem;
     margin-bottom: 1.25rem;

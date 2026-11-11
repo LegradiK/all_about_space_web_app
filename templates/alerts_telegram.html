@@ -15,9 +15,33 @@
             <li>You'll get a "Sky alerts are on" message. That's it.</li>
         </ol>
 
+        <div class="alerts-fallback">
+            <p class="alerts-fallback-title">No Start button?</p>
+            <p class="alerts-small">If you've chatted to the bot before, Telegram won't show Start again. Send it this message instead:</p>
+            <div class="alerts-code-row">
+                <code id="alertsStartCommand" class="alerts-code">/start {{ sub.token }}</code>
+                <button type="button" id="alertsCopyBtn" class="alerts-copy-btn">Copy</button>
+            </div>
+        </div>
+
         <p class="alerts-small">No Telegram yet? Install it from <a href="https://telegram.org/" target="_blank" rel="noopener">telegram.org</a> and come back to this page. This link works for 24 hours.</p>
         <p class="alerts-small"><a href="{{ url_for('alerts.alerts_page') }}">← Back to Sky Alerts</a></p>
     </div>
 </div>
 
+<script>
+  document.getElementById('alertsCopyBtn').addEventListener('click', async function () {
+    const text = document.getElementById('alertsStartCommand').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      this.textContent = 'Copied';
+    } catch (e) {
+      // clipboard blocked: select the text so it can be copied by hand
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById('alertsStartCommand'));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      this.textContent = 'Press Ctrl+C';
+    }
+  });
+</script>
 {% endblock %}
