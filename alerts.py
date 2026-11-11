@@ -130,36 +130,27 @@ def utcnow():
 
 # ───────────────────────── cities ─────────────────────────
 
-_cities = None
+_places = None
 
 
-def load_cities():
-    global _cities
-    if _cities is None:
+def load_places():
+    """static/cities.json: UK places grouped by region, with coordinates.
+
+    Returns (regions, by_name): regions keeps the file's order for the picker,
+    by_name maps a place name to {'name', 'region', 'lat', 'lon'}.
+    """
+    global _places
+    if _places is None:
         with open(os.path.join(BASE_DIR, 'static', 'cities.json'), encoding='utf-8') as f:
-            _cities = sorted(set(json.load(f)))
-    return _cities
+            regions = json.load(f)['regions']
+        by_name = {c['name']: dict(c, region=r['name']) for r in regions for c in r['cities']}
+        _places = (regions, by_name)
+    return _places
 
 
 def city_coordinates(name):
-    """Lat/lon for a UK city: from the cache, or looked up once with Open-Meteo."""
-    with get_db() as db:
-        row = db.execute('SELECT lat, lon FROM city_coords WHERE name = ?', (name,)).fetchone()
-        if row:
-            return row['lat'], row['lon']
-    response = requests.get(
-        'https://geocoding-api.open-meteo.com/v1/search',
-        params={'name': name, 'count': 1, 'language': 'en', 'format': 'json', 'countryCode': 'GB'},
-        timeout=10
-    )
-    response.raise_for_status()
-    results = response.json().get('results') or []
-    if not results:
-        return None
-    lat, lon = results[0]['latitude'], results[0]['longitude']
-    with get_db() as db:
-        db.execute('INSERT OR REPLACE INTO city_coords (name, lat, lon) VALUES (?, ?, ?)', (name, lat, lon))
-    return lat, lon
+    place = load_places()[1].get(name)
+    return (place['lat'], place['lon']) if place else None
 
 
 # ───────────────────────── outside data ─────────────────────────
@@ -397,7 +388,7 @@ MESSAGES = {
 @alerts_bp.route('/alerts', methods=['GET'])
 def alerts_page():
     message = MESSAGES.get(request.args.get('status'))
-    return render_template('alerts.html', cities=load_cities(), message=message,
+    return render_template('alerts.html', regions=load_places()[0], message=message,
                            error=None, form={}, telegram_enabled=telegram_bot.is_configured())
 
 
@@ -411,25 +402,20 @@ def subscribe():
         'want_iss': bool(request.form.get('want_iss')),
         'want_aurora': bool(request.form.get('want_aurora')),
     }
-    cities = load_cities()
+    regions, places = load_places()
+    # accept any capitalisation, but store the official spelling
+    form['city'] = next((n for n in places if n.lower() == form['city'].lower()), form['city'])
     error = None
     if form['channel'] == 'email' and not EMAIL_RE.match(form['email']):
         error = 'Please enter a valid email address.'
-    elif form['city'] not in cities:
-        error = 'Please choose your closest city from the list.'
+    elif form['city'] not in places:
+        error = 'Please choose your closest city or town from the list.'
     elif not (form['want_iss'] or form['want_aurora']):
         error = 'Please choose at least one type of alert.'
 
-    coords = None
-    if not error:
-        try:
-            coords = city_coordinates(form['city'])
-        except Exception as e:
-            print("Geocoding failed:", e)
-        if not coords:
-            error = 'Sorry, we could not find that city on the map. Please choose another one nearby.'
+    coords = city_coordinates(form['city']) if not error else None
     if error:
-        return render_template('alerts.html', cities=cities, message=None, error=error, form=form,
+        return render_template('alerts.html', regions=regions, message=None, error=error, form=form,
                                telegram_enabled=telegram_enabled), 400
 
     now = utcnow()

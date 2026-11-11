@@ -38,16 +38,35 @@
                            value="{{ form.email or '' }}" class="alerts-input" placeholder="you@example.com">
                 </label>
 
-                <label class="alerts-field">
-                    <span class="alerts-label">Closest city</span>
-                    <input type="text" name="city" list="alertsCityList" required autocomplete="off"
-                           value="{{ form.city or '' }}" class="alerts-input" placeholder="Start typing, e.g. Manchester">
-                    <datalist id="alertsCityList">
-                        {% for city in cities %}
-                        <option value="{{ city }}">
-                        {% endfor %}
-                    </datalist>
-                </label>
+                <div class="alerts-field">
+                    <label for="cityInput" class="alerts-label">Closest city or town</label>
+                    <div id="cityPicker" class="city-picker">
+                        <input type="text" id="cityInput" name="city" required autocomplete="off" spellcheck="false"
+                               role="combobox" aria-expanded="false" aria-controls="cityList" aria-autocomplete="list"
+                               aria-describedby="cityStatus"
+                               value="{{ form.city or '' }}" class="alerts-input city-picker-input"
+                               placeholder="Start typing, e.g. Kendal, or open the list">
+                        <button type="button" id="cityToggle" class="city-picker-toggle"
+                                aria-label="Show all places" tabindex="-1">▾</button>
+
+                        <div id="cityList" class="city-picker-list" role="listbox" aria-label="UK places by region" hidden>
+                            {% for region in regions %}
+                            <div class="city-picker-group" role="group" aria-label="{{ region.name }}" data-region="{{ region.name }}">
+                                <div class="city-picker-region">
+                                    <span>{{ region.name }}</span>
+                                    <span class="city-picker-count">{{ region.cities|length }}</span>
+                                </div>
+                                {% for city in region.cities %}
+                                <div class="city-picker-option" role="option" id="city-{{ loop.index0 }}-{{ region.name|replace(' ', '')|replace('&', '') }}"
+                                     data-value="{{ city.name }}" aria-selected="false">{{ city.name }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                            <p id="cityEmpty" class="city-picker-empty" hidden></p>
+                        </div>
+                    </div>
+                    <p id="cityStatus" class="city-picker-status" aria-live="polite"></p>
+                </div>
 
                 <fieldset class="alerts-choices">
                     <legend class="alerts-label">Alert me about</legend>
@@ -112,6 +131,172 @@
     }
     document.querySelectorAll('input[name="channel"]').forEach(r => r.addEventListener('change', update));
     update();
+  })();
+
+  /* ───── City picker: filter as you type, grouped by region ───── */
+  (function () {
+    const picker = document.getElementById('cityPicker');
+    const input = document.getElementById('cityInput');
+    const list = document.getElementById('cityList');
+    const toggle = document.getElementById('cityToggle');
+    const status = document.getElementById('cityStatus');
+    const empty = document.getElementById('cityEmpty');
+    const groups = [...list.querySelectorAll('.city-picker-group')];
+    const options = [...list.querySelectorAll('.city-picker-option')];
+    let active = -1;   // index into the visible options
+
+    // "St Albans" = "Saint Albans", hyphens and apostrophes ignored, any case
+    const norm = s => s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/['’.]/g, '').replace(/[-–]/g, ' ')
+      .replace(/\bsaint\b/g, 'st').replace(/\s+/g, ' ').trim();
+
+    options.forEach(o => {
+      o.dataset.search = norm(o.dataset.value);
+      o.dataset.region = o.closest('.city-picker-group').dataset.region;
+    });
+    const total = options.length;
+    const escapeHtml = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    // match from the start of any word: "hull" finds Kingston upon Hull, "ken" doesn't find Birkenhead
+    const startsWord = (text, q) => text.startsWith(q) || text.includes(' ' + q);
+
+    function exactMatch() {
+      const q = norm(input.value);
+      return q ? options.find(o => o.dataset.search === q) : null;
+    }
+
+    function visibleOptions() {
+      return options.filter(o => !o.hidden && !o.closest('.city-picker-group').hidden);
+    }
+
+    function highlight(option, raw) {
+      const name = option.dataset.value;
+      const lower = name.toLowerCase();
+      let i = raw ? (lower.startsWith(raw) ? 0 : lower.search(new RegExp('[\\s-]' + raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) ) + 1) : -1;
+      if (raw && i === 0 && !lower.startsWith(raw)) i = -1;
+      if (i < 0) { option.textContent = name; return; }
+      option.innerHTML = escapeHtml(name.slice(0, i)) + '<mark>' + escapeHtml(name.slice(i, i + raw.length)) +
+        '</mark>' + escapeHtml(name.slice(i + raw.length));
+    }
+
+    function filter() {
+      const q = norm(input.value);
+      let shown = 0;
+      groups.forEach(g => {
+        // typing a region name (e.g. "lake district") shows that whole region
+        const regionHit = q && startsWord(norm(g.dataset.region), q);
+        let inGroup = 0;
+        g.querySelectorAll('.city-picker-option').forEach(o => {
+          const hit = !q || regionHit || startsWord(o.dataset.search, q);
+          o.hidden = !hit;
+          if (hit) { inGroup++; highlight(o, regionHit ? '' : input.value.trim().toLowerCase()); }
+        });
+        g.hidden = inGroup === 0;
+        g.querySelector('.city-picker-count').textContent = inGroup;
+        shown += inGroup;
+      });
+      empty.hidden = shown > 0;
+      if (!shown) empty.textContent = `“${input.value.trim()}” isn't on our list. Try the nearest town instead, ` +
+        'or press ▾ to browse by region. Alerts work the same for anywhere within about 20 miles.';
+      setActive(-1);
+      updateStatus(shown);
+    }
+
+    function updateStatus(shown) {
+      const q = input.value.trim();
+      const exact = exactMatch();
+      status.className = 'city-picker-status';
+      if (!q) {
+        status.textContent = `${total} places in ${groups.length} regions. Type to search, or open the list.`;
+      } else if (exact) {
+        status.classList.add('city-picker-status-ok');
+        status.textContent = `✓ ${exact.dataset.value} is on the list (${exact.dataset.region}).`;
+      } else if (shown) {
+        status.textContent = `${shown} ${shown === 1 ? 'place matches' : 'places match'}. Choose one from the list.`;
+      } else {
+        status.classList.add('city-picker-status-missing');
+        status.textContent = `“${q}” isn't on our list. Choose the nearest town instead; ` +
+          'alerts work the same for anywhere within about 20 miles.';
+      }
+    }
+
+    function open() {
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+    function close() {
+      list.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      setActive(-1);
+    }
+
+    function setActive(i) {
+      const vis = visibleOptions();
+      options.forEach(o => { o.classList.remove('is-active'); o.setAttribute('aria-selected', 'false'); });
+      active = vis.length ? Math.max(-1, Math.min(i, vis.length - 1)) : -1;
+      if (active >= 0) {
+        const o = vis[active];
+        o.classList.add('is-active');
+        o.setAttribute('aria-selected', 'true');
+        input.setAttribute('aria-activedescendant', o.id);
+        o.scrollIntoView({ block: 'nearest' });
+      } else {
+        input.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function choose(option) {
+      input.value = option.dataset.value;
+      filter();
+      close();
+    }
+
+    input.addEventListener('input', () => { filter(); open(); });
+    input.addEventListener('focus', () => { filter(); if (!exactMatch()) open(); });
+    input.addEventListener('keydown', e => {
+      const vis = visibleOptions();
+      if (e.key === 'ArrowDown') { e.preventDefault(); open(); setActive(active + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+      else if (e.key === 'Enter' && !list.hidden) {
+        // Enter picks the highlighted place, or the only match
+        const pick = vis[active] || (vis.length === 1 ? vis[0] : null);
+        if (pick) { e.preventDefault(); choose(pick); }
+      }
+      else if (e.key === 'Escape') { close(); }
+    });
+
+    toggle.addEventListener('click', () => {
+      if (list.hidden) {
+        if (exactMatch()) input.value = '';   // show everything when browsing
+        filter(); open(); input.focus();
+      } else { close(); }
+    });
+
+    // mousedown (not click) so the input doesn't lose focus first
+    list.addEventListener('mousedown', e => {
+      const o = e.target.closest('.city-picker-option');
+      if (o) { e.preventDefault(); choose(o); }
+    });
+
+    document.addEventListener('click', e => { if (!picker.contains(e.target)) close(); });
+
+    // tidy up the spelling when leaving the box ("kendal" → "Kendal")
+    input.addEventListener('blur', () => {
+      const exact = exactMatch();
+      if (exact) input.value = exact.dataset.value;
+      updateStatus(visibleOptions().length);
+    });
+
+    // don't submit a place that isn't on the list
+    input.form.addEventListener('submit', e => {
+      const exact = exactMatch();
+      if (exact) { input.value = exact.dataset.value; return; }
+      e.preventDefault();
+      filter(); open(); input.focus();
+    });
+
+    filter();
   })();
 </script>
 {% endblock %}

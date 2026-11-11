@@ -1096,6 +1096,113 @@ a.asteroid-name:hover {
     border-color: var(--accent);
 }
 
+/* City picker: search box with a dropdown grouped by region */
+.city-picker {
+    position: relative;
+}
+
+.city-picker-input {
+    width: 100%;
+    padding-right: 40px;
+}
+
+.city-picker-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 38px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.city-picker-toggle:hover {
+    color: var(--accent);
+}
+
+.city-picker-list {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.city-picker-list[hidden],
+.city-picker-group[hidden],
+.city-picker-option[hidden],
+.city-picker-empty[hidden] {
+    display: none;
+}
+
+.city-picker-region {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--divider);
+    font-family: monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.city-picker-count {
+    color: var(--text-muted);
+}
+
+.city-picker-option {
+    padding: 7px 12px 7px 20px;
+    font-size: 0.85rem;
+    color: var(--text-body);
+    cursor: pointer;
+}
+
+.city-picker-option:hover,
+.city-picker-option.is-active {
+    background: var(--accent-soft);
+    color: var(--text-primary);
+}
+
+.city-picker-option mark {
+    background: none;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.city-picker-empty {
+    padding: 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.city-picker-status {
+    min-height: 1.2em;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.city-picker-status-ok {
+    color: #22c55e;
+}
+
+.city-picker-status-missing {
+    color: #f97316;
+}
+
 .alerts-choices {
     border: none;
     padding: 0;

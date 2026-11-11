@@ -138,7 +138,7 @@ Every 10 minutes the GitHub Actions workflow `sky-alerts.yml` POSTs to `/tasks/c
 - **ISS** — predicts passes from the CelesTrak orbit and emails when a pass starts in 15–40 minutes, climbs ≥ 25°, is magnitude −1 or brighter, is sunlit while the city is dark, and Open-Meteo forecasts ≤ 40% cloud.
 - **Aurora** — emails when AuroraWatch UK is Red (whole UK), Amber (north of ~53.3°N) or Yellow (north of 57°N), the sun is 12°+ below the horizon and cloud cover is ≤ 50%. At most one email per night unless the level rises.
 
-City coordinates are looked up once with the Open-Meteo geocoding API and cached in `alerts.db`.
+The 594 places in `static/cities.json` are grouped into 19 regions (north to south), each with coordinates from [GeoNames](https://www.geonames.org/) (CC BY 4.0). The sign-up page filters them as you type, groups matches by region, and says clearly when a place isn't on the list. Typing a region name such as "Lake District" shows all its places.
 
 **Telegram on PythonAnywhere's free tier.** The free tier can't reach `api.telegram.org`, so nothing Telegram-related needs it:
 - bot replies (`/start`, `/status`, `/stop`, `/help`) are returned in the webhook's HTTP response, which Telegram delivers itself;
