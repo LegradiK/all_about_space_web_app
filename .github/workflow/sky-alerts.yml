@@ -2,51 +2,78 @@ name: Sky alerts
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes (UTC); GitHub may delay runs a few minutes
-  workflow_dispatch:
-    inputs:
-      force:
-        description: "Force a test alert (sent to admin only)"
-        type: choice
-        options:
-          - none
-          - aurora
-          - iss
-        default: none
+    - cron: "*/10 * * * *"   # every 10 minutes (UTC); GitHub may delay runs a little
+  workflow_dispatch:          # adds a "Run workflow" button for manual runs
 
 concurrency:
   group: sky-alerts
-  cancel-in-progress: false   # don't start a new run while one is still going
+  cancel-in-progress: false
 
 jobs:
-  trigger:
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
+
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
     steps:
-      - name: Call alert endpoint
-        env:
-          ALERT_URL: ${{ secrets.ALERT_URL }}
-          ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
-          FORCE: ${{ inputs.force || 'none' }}
+      - name: Check secrets
         run: |
-          # Fail early with a clear message if secrets are missing
-          if [ -z "$ALERT_URL" ]; then
-            echo "::error::ALERT_URL secret is empty or missing"
-            exit 1
-          fi
-          if [ -z "$ALERT_TASK_TOKEN" ]; then
-            echo "::error::ALERT_TASK_TOKEN secret is empty or missing"
-            exit 1
-          fi
+          [ -n "$SITE_URL" ]         || { echo "::error::SITE_URL secret is missing"; exit 1; }
+          [ -n "$ALERT_TASK_TOKEN" ] || { echo "::error::ALERT_TASK_TOKEN secret is missing"; exit 1; }
+          echo "Site host: $(echo "$SITE_URL" | cut -d/ -f3)"
 
-          echo "Calling host: $(echo "$ALERT_URL" | cut -d/ -f3)"
-          echo "Force mode: $FORCE"
-
-          curl --fail-with-body --silent --show-error --max-time 240 \
+      - name: Run alert check
+        id: check
+        run: |
+          response=$(curl --fail-with-body --silent --show-error --max-time 240 \
             --retry 2 --retry-delay 10 \
             -X POST \
-            -H "Authorization: Bearer $ALERT_TASK_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"force\": \"$FORCE\"}" \
-            "$ALERT_URL"
+            -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
+            "${SITE_URL%/}/tasks/check-alerts")
+
+          # Log the summary without the message texts
+          echo "$response" | jq 'del(.telegram_outbox) + {telegram_queued: (.telegram_outbox | length)}'
+
+          echo "$response" | jq -c '.telegram_outbox[]?' > outbox.jsonl
+          echo "queued=$(wc -l < outbox.jsonl)" >> "$GITHUB_OUTPUT"
+
+      - name: Deliver queued Telegram messages
+        if: steps.check.outputs.queued != '0'
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::warning::Messages queued but TELEGRAM_BOT_TOKEN secret is missing"
+            exit 0
+          fi
+
+          gone=()
+          while IFS= read -r msg; do
+            chat_id=$(jq -r '.chat_id' <<<"$msg")
+            body=$(jq -c '{chat_id, text, parse_mode: "HTML", disable_web_page_preview: true}' <<<"$msg")
+            result=$(curl --silent --max-time 20 \
+              -H "Content-Type: application/json" -d "$body" \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage")
+
+            if [ "$(jq -r '.ok' <<<"$result")" != "true" ]; then
+              desc=$(jq -r '.description // "unknown error"' <<<"$result")
+              echo "::warning::Telegram send failed: $desc"
+              case "$desc" in
+                *blocked*|*"chat not found"*|*deactivated*|*kicked*) gone+=("$chat_id") ;;
+              esac
+            fi
+            sleep 0.1   # stay well under Telegram's rate limit
+          done < outbox.jsonl
+
+          if [ ${#gone[@]} -gt 0 ]; then
+            payload=$(printf '%s\n' "${gone[@]}" | jq -R 'tonumber' | jq -sc '{chat_ids: .}')
+            curl --fail-with-body --silent --show-error --max-time 30 \
+              -X POST \
+              -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$payload" \
+              "${SITE_URL%/}/tasks/telegram-gone"
+            echo
+          fi
