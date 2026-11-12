@@ -15,16 +15,16 @@ jobs:
     timeout-minutes: 8
 
     env:
-      SITE_URL: ${{ secrets.SITE_URL }}
+      ALERT_URL: ${{ secrets.ALERT_URL }}
       ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
     steps:
       - name: Check secrets
         run: |
-          [ -n "$SITE_URL" ]         || { echo "::error::SITE_URL secret is missing"; exit 1; }
+          [ -n "$ALERT_URL" ]         || { echo "::error::ALERT_URL secret is missing"; exit 1; }
           [ -n "$ALERT_TASK_TOKEN" ] || { echo "::error::ALERT_TASK_TOKEN secret is missing"; exit 1; }
-          echo "Site host: $(echo "$SITE_URL" | cut -d/ -f3)"
+          echo "Site host: $(echo "$ALERT_URL" | cut -d/ -f3)"
 
       - name: Run alert check
         id: check
@@ -33,7 +33,7 @@ jobs:
             --retry 2 --retry-delay 10 \
             -X POST \
             -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
-            "${SITE_URL%/}/tasks/check-alerts")
+            "${ALERT_URL%/}/tasks/check-alerts")
 
           # Log the summary without the message texts
           echo "$response" | jq 'del(.telegram_outbox) + {telegram_queued: (.telegram_outbox | length)}'
@@ -74,6 +74,6 @@ jobs:
               -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$payload" \
-              "${SITE_URL%/}/tasks/telegram-gone"
+              "${ALERT_URL%/}/tasks/telegram-gone"
             echo
           fi
