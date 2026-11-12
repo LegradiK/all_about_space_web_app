@@ -4,6 +4,16 @@ on:
   schedule:
     - cron: "*/10 * * * *"   # every 10 minutes (UTC); GitHub may delay runs a little
   workflow_dispatch:          # adds a "Run workflow" button for manual runs
+    inputs:
+      test:
+        description: "Send a made-up test alert to you only (none = normal check)"
+        type: choice
+        options:
+          - none
+          - iss
+          - aurora
+          - both
+        default: none
 
 concurrency:
   group: sky-alerts
@@ -19,6 +29,7 @@ jobs:
       ALERT_URL: ${{ secrets.ALERT_URL }}
       ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TEST_MODE: ${{ inputs.test || 'none' }}   # scheduled runs have no input, so 'none'
 
     steps:
       - name: Check secrets
@@ -34,6 +45,8 @@ jobs:
             --retry 2 --retry-delay 10 \
             -X POST \
             -H "X-Alert-Token: $ALERT_TASK_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"test\": \"$TEST_MODE\"}" \
             "${ALERT_URL%/}/tasks/check-alerts")
 
           # Log the summary without the message texts

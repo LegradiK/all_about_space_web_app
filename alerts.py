@@ -15,6 +15,9 @@ Settings (data.env):
     ALERT_TASK_TOKEN  long random string, also stored as a GitHub secret
     MAIL_USERNAME / MAIL_PASSWORD   see mailer.py
     TELEGRAM_*        see telegram_bot.py
+    ALERT_TEST_EMAIL / ALERT_TEST_TELEGRAM_CHAT_ID
+                      your own subscription(s); "Run workflow" with a test option
+                      sends made-up alerts to these only
 """
 import hmac
 import json
@@ -347,18 +350,75 @@ def check_aurora(db, subs, now):
     return sent
 
 
-def check_and_send(now=None):
+def test_recipients(db):
+    """Your own subscriptions, picked by ALERT_TEST_EMAIL / ALERT_TEST_TELEGRAM_CHAT_ID in data.env.
+
+    Test alerts only ever go to these, never to public subscribers.
+    """
+    email = (os.getenv('ALERT_TEST_EMAIL') or '').strip().lower()
+    chat_id = (os.getenv('ALERT_TEST_TELEGRAM_CHAT_ID') or '').strip()
+    subs = []
+    if email:
+        subs += db.execute("SELECT * FROM subscribers WHERE confirmed = 1 AND channel = 'email' AND email = ?",
+                           (email,)).fetchall()
+    if chat_id.lstrip('-').isdigit():
+        subs += db.execute("SELECT * FROM subscribers WHERE confirmed = 1 AND channel = 'telegram' "
+                           "AND telegram_chat_id = ?", (int(chat_id),)).fetchall()
+    return subs
+
+
+def send_test_alerts(db, kinds, now):
+    """Send made-up ISS / aurora alerts through the real templates and channels.
+
+    Nothing is recorded in sent_alerts, so real alerts are not affected.
+    """
+    subs = test_recipients(db)
+    sent = {'iss': 0, 'aurora': 0}
+    for s in subs:
+        if 'iss' in kinds:
+            start = now + timedelta(minutes=30)
+            context = dict(
+                city=s['city'], minutes=30, cloud=10,
+                start=uk_time(start), end=uk_time(start + timedelta(minutes=6)),
+                start_dir='WSW', end_dir='ENE', max_elevation=72, duration=6,
+                magnitude=-3.4, iss_url=site_url('/iss'),
+            )
+            subject = f'[TEST] ISS visible over {s["city"]} at {context["start"]}, look WSW'
+            if notify(db, s, 'iss_alert', subject, context):
+                sent['iss'] += 1
+        if 'aurora' in kinds:
+            context = dict(city=s['city'], level='red', cloud=10, aurora_url=site_url('/aurora'))
+            subject = f'[TEST] Aurora alert for {s["city"]}: Red, sky 10% cloudy'
+            if notify(db, s, 'aurora_alert', subject, context):
+                sent['aurora'] += 1
+    return len(subs), sent
+
+
+def check_and_send(now=None, test=None):
+    """Run the real checks, or with test='iss' / 'aurora' / 'both' send test alerts to you only."""
     now = now or utcnow()
     summary = {'checked_at': now.isoformat(), 'iss_sent': 0, 'aurora_sent': 0, 'errors': []}
     with get_db() as db:
-        subs = db.execute('SELECT * FROM subscribers WHERE confirmed = 1').fetchall()
-        summary['subscribers'] = len(subs)
-        for name, fn in (('iss_sent', check_iss), ('aurora_sent', check_aurora)):
+        if test:
+            kinds = ('iss', 'aurora') if test == 'both' else (test,)
             try:
-                summary[name] = fn(db, subs, now)
+                summary['test_recipients'], sent = send_test_alerts(db, kinds, now)
+                summary['iss_sent'], summary['aurora_sent'] = sent['iss'], sent['aurora']
+                if not summary['test_recipients']:
+                    summary['errors'].append('test: no confirmed subscription matches ALERT_TEST_EMAIL '
+                                             'or ALERT_TEST_TELEGRAM_CHAT_ID in data.env')
             except Exception as e:
-                print(f"Alert check {name} failed:", e)
-                summary['errors'].append(f'{name}: {e}')
+                print("Test alert failed:", e)
+                summary['errors'].append(f'test: {e}')
+        else:
+            subs = db.execute('SELECT * FROM subscribers WHERE confirmed = 1').fetchall()
+            summary['subscribers'] = len(subs)
+            for name, fn in (('iss_sent', check_iss), ('aurora_sent', check_aurora)):
+                try:
+                    summary[name] = fn(db, subs, now)
+                except Exception as e:
+                    print(f"Alert check {name} failed:", e)
+                    summary['errors'].append(f'{name}: {e}')
         # tidy up old records and Telegram sign-ups nobody finished
         db.execute('DELETE FROM sent_alerts WHERE sent_at < ?', ((now - timedelta(days=7)).isoformat(),))
         db.execute("DELETE FROM subscribers WHERE channel = 'telegram' AND confirmed = 0 AND created_at < ?",
@@ -474,7 +534,10 @@ def run_check():
     given = request.headers.get('X-Alert-Token', '')
     if not expected or not hmac.compare_digest(given, expected):
         abort(403)
-    return jsonify(check_and_send())
+    test = (request.get_json(silent=True) or {}).get('test')
+    if test not in ('iss', 'aurora', 'both'):
+        test = None
+    return jsonify(check_and_send(test=test))
 
 
 init_db()
