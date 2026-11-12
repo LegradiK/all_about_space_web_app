@@ -12,6 +12,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    environment: horizon-intelligence 
     timeout-minutes: 8
 
     env:
