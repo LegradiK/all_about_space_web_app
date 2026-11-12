@@ -1,0 +1,52 @@
+name: Sky alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (UTC); GitHub may delay runs a few minutes
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force a test alert (sent to admin only)"
+        type: choice
+        options:
+          - none
+          - aurora
+          - iss
+        default: none
+
+concurrency:
+  group: sky-alerts
+  cancel-in-progress: false   # don't start a new run while one is still going
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Call alert endpoint
+        env:
+          ALERT_URL: ${{ secrets.ALERT_URL }}
+          ALERT_TASK_TOKEN: ${{ secrets.ALERT_TASK_TOKEN }}
+          FORCE: ${{ inputs.force || 'none' }}
+        run: |
+          # Fail early with a clear message if secrets are missing
+          if [ -z "$ALERT_URL" ]; then
+            echo "::error::ALERT_URL secret is empty or missing"
+            exit 1
+          fi
+          if [ -z "$ALERT_TASK_TOKEN" ]; then
+            echo "::error::ALERT_TASK_TOKEN secret is empty or missing"
+            exit 1
+          fi
+
+          echo "Calling host: $(echo "$ALERT_URL" | cut -d/ -f3)"
+          echo "Force mode: $FORCE"
+
+          curl --fail-with-body --silent --show-error --max-time 240 \
+            --retry 2 --retry-delay 10 \
+            -X POST \
+            -H "Authorization: Bearer $ALERT_TASK_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"force\": \"$FORCE\"}" \
+            "$ALERT_URL"
